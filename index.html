@@ -466,47 +466,189 @@
         persistSave();
       }
 
-      // Procedural Web Audio
+      // AAA Stereo Layered Web Audio Engine (Stereo Panning + Noise Transients + 136 BPM Driving Action Score)
       const sfx = {
-        ctx: null, enabled: false, drone: null, droneGain: null,
+        ctx: null, enabled: false, master: null, noiseBuf: null,
+        engNoise: null, engFilter: null, engGain: null, musicTimer: null, step: 0, sideFlip: 1,
         init: function () {
           if (this.ctx) return;
           const Ctx = window.AudioContext || window.webkitAudioContext;
           if (!Ctx) return;
           this.ctx = new Ctx();
-          this.drone = this.ctx.createOscillator(); this.drone.type = 'sawtooth'; this.drone.frequency.value = 52;
-          const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160;
-          this.droneGain = this.ctx.createGain(); this.droneGain.gain.value = 0;
-          this.drone.connect(f); f.connect(this.droneGain); this.droneGain.connect(this.ctx.destination);
-          this.drone.start();
+          this.master = this.ctx.createGain();
+          this.master.gain.value = 0.0;
+          const comp = this.ctx.createDynamicsCompressor();
+          comp.threshold.value = -14; comp.ratio.value = 6;
+          this.master.connect(comp); comp.connect(this.ctx.destination);
+
+          // Pre-generate 2s stereo white noise buffer for explosions, railgun crack, plasma hiss & engine turbine
+          const len = this.ctx.sampleRate * 2;
+          this.noiseBuf = this.ctx.createBuffer(2, len, this.ctx.sampleRate);
+          for (let ch = 0; ch < 2; ch++) {
+            const data = this.noiseBuf.getChannelData(ch);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+          }
+
+          // Continuous Ion Engine Turbine Whoosh
+          this.engNoise = this.ctx.createBufferSource();
+          this.engNoise.buffer = this.noiseBuf; this.engNoise.loop = true;
+          this.engFilter = this.ctx.createBiquadFilter();
+          this.engFilter.type = 'bandpass'; this.engFilter.frequency.value = 180; this.engFilter.Q.value = 1.4;
+          this.engGain = this.ctx.createGain(); this.engGain.gain.value = 0.06;
+          this.engNoise.connect(this.engFilter); this.engFilter.connect(this.engGain); this.engGain.connect(this.master);
+          this.engNoise.start();
+
+          this.startActionScore();
+        },
+        makePan: function (panVal) {
+          const p = Math.max(-0.92, Math.min(0.92, panVal || 0));
+          if (this.ctx.createStereoPanner) {
+            const sp = this.ctx.createStereoPanner(); sp.pan.value = p; sp.connect(this.master); return sp;
+          }
+          return this.master;
         },
         toggle: function () {
           this.init(); if (!this.ctx) return false;
           if (this.ctx.state === 'suspended') this.ctx.resume();
           this.enabled = !this.enabled;
-          this.droneGain.gain.setTargetAtTime(this.enabled ? 0.038 : 0, this.ctx.currentTime, 0.1);
-          if (!this.musicStarted) {
-            this.musicStarted = true;
-            const scale = [55, 65.41, 73.42, 82.41, 98.0, 110.0];
-            let step = 0;
-            const self = this;
-            window.setInterval(function () {
-              if (!self.enabled || !self.ctx || state.paused) return;
-              const isBoss = !!(boss && !boss.dying);
-              const f = scale[(step + (isBoss ? 2 : 0)) % scale.length] * (isBoss && step % 2 === 0 ? 1.5 : 1);
-              self.tone(f, f * (isBoss ? 0.96 : 1.01), isBoss ? 0.24 : 0.48, isBoss ? 'sawtooth' : 'triangle', isBoss ? 0.042 : 0.025);
-              step++;
-            }, 300);
-          }
+          this.master.gain.setTargetAtTime(this.enabled ? 0.72 : 0.0, this.ctx.currentTime, 0.08);
           return this.enabled;
         },
-        tone: function (f1, f2, dur, type, vol) {
+        updateFlightAudio: function (boosting, speedMag) {
+          if (!this.ctx || !this.enabled || !this.engFilter) return;
+          const now = this.ctx.currentTime;
+          this.engFilter.frequency.setTargetAtTime(boosting ? 560 : 170 + speedMag * 120, now, 0.09);
+          this.engGain.gain.setTargetAtTime(boosting ? 0.14 : 0.055 + speedMag * 0.025, now, 0.09);
+        },
+        startActionScore: function () {
+          const self = this;
+          // 136 BPM 16th-note step = ~110ms — Driving Hans-Zimmer / Sci-Fi Synthwave Action Pulse
+          const bassSeq = [73.42, 73.42, 146.83, 73.42, 87.31, 73.42, 110.0, 98.0, 58.27, 58.27, 116.54, 58.27, 65.41, 65.41, 130.81, 82.41];
+          const leadSeq = [293.66, 0, 349.23, 0, 440.0, 0, 392.0, 349.23, 329.63, 0, 293.66, 0, 261.63, 0, 329.63, 0];
+          this.musicTimer = window.setInterval(function () {
+            if (!self.enabled || !self.ctx || state.paused) return;
+            const now = self.ctx.currentTime;
+            const st = self.step % 16;
+            const isBoss = !!(boss && !boss.dying);
+
+            // 1. Tight Punchy Electronic Kick on beats 0, 4, 8, 12 (+ extra syncopated kick on Boss!)
+            if (st % 4 === 0 || (isBoss && st === 14)) {
+              const ko = self.ctx.createOscillator(), kg = self.ctx.createGain();
+              ko.type = 'sine'; ko.frequency.setValueAtTime(138, now); ko.frequency.exponentialRampToValueAtTime(38, now + 0.11);
+              kg.gain.setValueAtTime(isBoss ? 0.34 : 0.25, now); kg.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+              ko.connect(kg); kg.connect(self.master); ko.start(now); ko.stop(now + 0.14);
+            }
+
+            // 2. Crisp Stereo Hi-Hat / Flight Percussion Tick on off-beats
+            if (st % 2 === 1) {
+              const ns = self.ctx.createBufferSource(); ns.buffer = self.noiseBuf;
+              const hp = self.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6800;
+              const hg = self.ctx.createGain(); hg.gain.setValueAtTime(st % 4 === 3 ? 0.055 : 0.032, now);
+              hg.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+              const pan = self.makePan((st % 4 === 1) ? -0.35 : 0.35);
+              ns.connect(hp); hp.connect(hg); hg.connect(pan);
+              ns.start(now, Math.random() * 1.2, 0.05);
+            }
+
+            // 3. Driving 16th-Note Resonant Synth Bass Arp
+            const bf = bassSeq[st] * (isBoss ? 1.0 : 1.0);
+            const bo = self.ctx.createOscillator(), bftr = self.ctx.createBiquadFilter(), bg = self.ctx.createGain();
+            bo.type = 'sawtooth'; bo.frequency.setValueAtTime(bf, now);
+            bftr.type = 'lowpass'; bftr.Q.value = isBoss ? 5.2 : 3.2;
+            bftr.frequency.setValueAtTime(isBoss ? 920 : 540, now); bftr.frequency.exponentialRampToValueAtTime(150, now + 0.095);
+            bg.gain.setValueAtTime(0.11, now); bg.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+            bo.connect(bftr); bftr.connect(bg); bg.connect(self.master); bo.start(now); bo.stop(now + 0.105);
+
+            // 4. Stereo Cinematic Sci-Fi Lead / Boss Tension Riff
+            const lf = leadSeq[st];
+            if (lf > 0 && (isBoss || self.step % 32 >= 16)) {
+              const lo = self.ctx.createOscillator(), lg = self.ctx.createGain(), lftr = self.ctx.createBiquadFilter();
+              lo.type = isBoss ? 'sawtooth' : 'triangle';
+              lo.frequency.setValueAtTime(lf * (isBoss ? 1.0 : 0.5), now);
+              lftr.type = 'lowpass'; lftr.frequency.value = isBoss ? 1800 : 1200;
+              lg.gain.setValueAtTime(0.055, now); lg.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+              const pan = self.makePan((st % 8 < 4) ? -0.45 : 0.45);
+              lo.connect(lftr); lftr.connect(lg); lg.connect(pan); lo.start(now); lo.stop(now + 0.2);
+            }
+            self.step++;
+          }, 110);
+        },
+        playWeapon: function (kind, panHint) {
+          if (!this.ctx || !this.enabled) return;
+          const now = this.ctx.currentTime;
+          this.sideFlip = -this.sideFlip;
+          const pan = this.makePan(panHint !== undefined ? panHint : this.sideFlip * 0.36);
+
+          if (kind === 'PULSE' || kind === 'BURST') {
+            // Stereo laser punch + crisp high-frequency transient crack
+            const o1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
+            o1.type = kind === 'BURST' ? 'square' : 'sawtooth';
+            o1.frequency.setValueAtTime(kind === 'BURST' ? 980 : 780, now);
+            o1.frequency.exponentialRampToValueAtTime(145, now + 0.085);
+            g1.gain.setValueAtTime(0.14, now); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
+            const f1 = this.ctx.createBiquadFilter(); f1.type = 'lowpass'; f1.frequency.value = 2600;
+            o1.connect(f1); f1.connect(g1); g1.connect(pan); o1.start(now); o1.stop(now + 0.1);
+
+            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
+            const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3400;
+            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.09, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+            ns.connect(bp); bp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.045);
+          } else if (kind === 'PLASMA') {
+            // Heavy sub-bass thump + sizzling plasma hiss across stereo
+            const o1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
+            o1.type = 'sawtooth'; o1.frequency.setValueAtTime(210, now); o1.frequency.exponentialRampToValueAtTime(38, now + 0.22);
+            g1.gain.setValueAtTime(0.24, now); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+            o1.connect(g1); g1.connect(pan); o1.start(now); o1.stop(now + 0.25);
+
+            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
+            const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(1600, now); bp.frequency.exponentialRampToValueAtTime(380, now + 0.22);
+            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.18, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.23);
+            ns.connect(bp); bp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.24);
+          } else if (kind === 'RAILGUN') {
+            // Supersonic hypervelocity crack + dual-channel stereo sub-boom
+            const o1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
+            o1.type = 'sawtooth'; o1.frequency.setValueAtTime(1650, now); o1.frequency.exponentialRampToValueAtTime(42, now + 0.28);
+            g1.gain.setValueAtTime(0.26, now); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+            o1.connect(g1); g1.connect(this.master); o1.start(now); o1.stop(now + 0.31);
+
+            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
+            const hp = this.ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.setValueAtTime(4200, now); hp.frequency.exponentialRampToValueAtTime(520, now + 0.24);
+            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.28, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            ns.connect(hp); hp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.26);
+          } else if (kind === 'MISSILE') {
+            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
+            const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(600, now); bp.frequency.exponentialRampToValueAtTime(2400, now + 0.26); bp.Q.value = 2.0;
+            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.20, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            ns.connect(bp); bp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.30);
+          }
+        },
+        playExplosion: function (worldX, scale) {
+          if (!this.ctx || !this.enabled) return;
+          const now = this.ctx.currentTime;
+          const sc = Math.min(2.5, Math.max(0.7, scale || 1.0));
+          const pan = this.makePan((worldX || 0) / 18);
+
+          // Deep Zero-G Sub-Bass Shockwave Boom
+          const sub = this.ctx.createOscillator(), sg = this.ctx.createGain();
+          sub.type = 'sine'; sub.frequency.setValueAtTime(92, now); sub.frequency.exponentialRampToValueAtTime(22, now + 0.42 * sc);
+          sg.gain.setValueAtTime(0.32, now); sg.gain.exponentialRampToValueAtTime(0.001, now + 0.45 * sc);
+          sub.connect(sg); sg.connect(pan); sub.start(now); sub.stop(now + 0.46 * sc);
+
+          // Roaring Low-Pass Filtered Fireball Blast Noise
+          const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
+          const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass';
+          lp.frequency.setValueAtTime(1400, now); lp.frequency.exponentialRampToValueAtTime(140, now + 0.48 * sc);
+          const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.34, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.52 * sc);
+          ns.connect(lp); lp.connect(ng); ng.connect(pan); ns.start(now, Math.random() * 0.5, 0.55 * sc);
+        },
+        tone: function (f1, f2, dur, type, vol, panVal) {
           if (!this.ctx || !this.enabled) return;
           const now = this.ctx.currentTime, osc = this.ctx.createOscillator(), g = this.ctx.createGain();
           osc.type = type || 'triangle';
           osc.frequency.setValueAtTime(f1, now); osc.frequency.exponentialRampToValueAtTime(Math.max(24, f2), now + dur);
-          g.gain.setValueAtTime(vol || 0.07, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
-          osc.connect(g); g.connect(this.ctx.destination); osc.start(now); osc.stop(now + dur);
+          g.gain.setValueAtTime(vol || 0.09, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          const dest = this.makePan(panVal || 0);
+          osc.connect(g); g.connect(dest); osc.start(now); osc.stop(now + dur);
         }
       };
 
@@ -1190,6 +1332,64 @@
       })();
 
       const thrusterLight = new THREE.PointLight(0x2ce8ff, 3.8, 18); thrusterLight.position.set(0,0,4.0); shipGroup.add(thrusterLight);
+
+      // Visible 3D Wing & Nose Muzzle Flash Starburst Meshes attached directly to VX-09 Vanguard!
+      function createMuzzleStarTexture() {
+        const c = document.createElement('canvas'); c.width = c.height = 128;
+        const g = c.getContext('2d');
+        const rg = g.createRadialGradient(64, 64, 2, 64, 64, 62);
+        rg.addColorStop(0, 'rgba(255,255,255,1)');
+        rg.addColorStop(0.28, 'rgba(180,248,255,0.92)');
+        rg.addColorStop(0.65, 'rgba(44,220,255,0.35)');
+        rg.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+        // Sharp star flare spikes
+        g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 4;
+        for (let a = 0; a < 4; a++) {
+          const ang = a * Math.PI / 4;
+          g.beginPath(); g.moveTo(64 - Math.cos(ang)*58, 64 - Math.sin(ang)*58); g.lineTo(64 + Math.cos(ang)*58, 64 + Math.sin(ang)*58); g.stroke();
+        }
+        return new THREE.CanvasTexture(c);
+      }
+      const muzzleTex = createMuzzleStarTexture();
+      const muzzleSprites = [];
+      [[-2.68, -0.18, -1.95], [2.68, -0.18, -1.95], [0, 0.05, -4.45]].forEach(function (mp) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0x3ef4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+        sp.position.set(mp[0], mp[1], mp[2]);
+        sp.scale.set(2.8, 2.8, 1);
+        shipGroup.add(sp);
+        muzzleSprites.push(sp);
+      });
+      const shipMuzzleLight = new THREE.PointLight(0x3ef4ff, 0, 22);
+      shipMuzzleLight.position.set(0, 0.7, -2.5);
+      shipGroup.add(shipMuzzleLight);
+
+      // Procedural Turbulent Fireball & Dark Thermal Smoke Textures for Realistic Zero-G Explosions
+      function createFireballTex(isSmoke) {
+        const c = document.createElement('canvas'); c.width = c.height = 256;
+        const g = c.getContext('2d');
+        for (let i = 0; i < 24; i++) {
+          const ang = (i / 24) * Math.PI * 2 + (i % 3) * 0.4;
+          const dist = (i % 4) * 16;
+          const cx = 128 + Math.cos(ang) * dist, cy = 128 + Math.sin(ang) * dist;
+          const rad = 52 + (i % 3) * 24;
+          const rg = g.createRadialGradient(cx, cy, 4, cx, cy, rad);
+          if (isSmoke) {
+            rg.addColorStop(0, 'rgba(38, 26, 22, 0.52)');
+            rg.addColorStop(0.55, 'rgba(20, 14, 14, 0.24)');
+            rg.addColorStop(1, 'rgba(0,0,0,0)');
+          } else {
+            rg.addColorStop(0, 'rgba(255, 252, 224, 0.85)');
+            rg.addColorStop(0.32, 'rgba(255, 168, 42, 0.65)');
+            rg.addColorStop(0.68, 'rgba(218, 52, 16, 0.34)');
+            rg.addColorStop(1, 'rgba(0,0,0,0)');
+          }
+          g.fillStyle = rg; g.fillRect(0, 0, 256, 256);
+        }
+        return new THREE.CanvasTexture(c);
+      }
+      const fireballTex = createFireballTex(false);
+      const smokePlumeTex = createFireballTex(true);
       const shieldUniforms = { uTime: { value: 0 }, uOpacity: { value: 0 }, uImpact: { value: 0 } };
       const shieldDome = new THREE.Mesh(new THREE.SphereGeometry(3.65, 28, 20), new THREE.ShaderMaterial({ vertexShader: SHIELD_VERT, fragmentShader: SHIELD_FRAG, uniforms: shieldUniforms, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
       shieldDome.scale.set(1.15, 0.62, 1.25); shipGroup.add(shieldDome);
@@ -1202,11 +1402,21 @@
       const machRingGeo = new THREE.TorusGeometry(1.05, 0.11, 8, 22);
       const trailOrbGeo = new THREE.SphereGeometry(0.28, 8, 6);
 
-      function flashMuzzle(pos, colorHex, intensity) {
+      function flashMuzzle(pos, colorHex, intensity, centerOnly) {
         muzzleLight.position.copy(pos);
         muzzleLight.color.setHex(colorHex);
-        muzzleLight.intensity = intensity || 8.0;
-        muzzleTimer = 0.09;
+        muzzleLight.intensity = intensity || 10.0;
+        shipMuzzleLight.color.setHex(colorHex);
+        shipMuzzleLight.intensity = (intensity || 10.0) * 1.15;
+        muzzleTimer = 0.11;
+        muzzleSprites.forEach(function (sp, idx) {
+          const active = centerOnly ? (idx === 2) : (idx < 2 || intensity >= 10);
+          sp.material.color.setHex(colorHex);
+          sp.material.opacity = active ? 1.0 : 0.0;
+          const sc = (idx === 2 ? 3.8 : 2.9) * (0.85 + Math.random() * 0.45);
+          sp.scale.set(sc, sc, 1);
+          sp.material.rotation = Math.random() * Math.PI;
+        });
       }
       function spawnMachRings(origin, count, colorHex) {
         for (let i = 0; i < count; i++) {
@@ -1251,19 +1461,54 @@
       const explosions = [], shockwaves = [], critPops = [], pickups = [];
       function spawnExplosion(pos, scale, colorHex) {
         const g = new THREE.Group(); g.position.copy(pos);
-        const core = new THREE.Mesh(new THREE.SphereGeometry(1.1*scale, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff3d1, transparent: true, opacity: 1, blending: THREE.AdditiveBlending }));
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.5*scale, 1.25*scale, 24), new THREE.MeshBasicMaterial({ color: colorHex || 0xff7b29, side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const sc = scale || 1.0;
+
+        // 1. Blinding White-Gold Flash Core + Dynamic Illumination Light
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0xfff6d6, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false }));
+        core.scale.set(5.2 * sc, 5.2 * sc, 1);
+        const light = new THREE.PointLight(colorHex || 0xff7a22, 12 * sc, 48 * sc);
+        g.add(core, light);
+
+        // 2. Billowing Multi-Layered Volumetric Fireball Cloud Sprites (5 overlapping rotating fire clouds!)
+        const fireballs = [];
+        for (let f = 0; f < 5; f++) {
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: fireballTex, color: f === 0 ? 0xffdf8e : (colorHex || 0xff6b1c),
+            transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false
+          }));
+          const ang = (f / 5) * Math.PI * 2;
+          const off = f === 0 ? 0 : (0.8 + Math.random() * 1.1) * sc;
+          sp.position.set(Math.cos(ang) * off, Math.sin(ang) * off, (Math.random() - 0.5) * sc);
+          const initS = (3.4 + Math.random() * 1.6) * sc;
+          sp.scale.set(initS, initS, 1);
+          sp.material.rotation = Math.random() * 6.28;
+          g.add(sp);
+          fireballs.push({ sp: sp, vx: Math.cos(ang)*4.5*sc, vy: Math.sin(ang)*4.5*sc, baseS: initS, spin: (Math.random()-0.5)*1.8 });
+        }
+
+        // 3. Dark Backlit Thermal Smoke Plumes
+        const smokes = [];
+        for (let sm = 0; sm < 3; sm++) {
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokePlumeTex, transparent: true, opacity: 0.72, depthWrite: false }));
+          sp.position.set((Math.random()-0.5)*1.8*sc, (Math.random()-0.5)*1.8*sc, -0.6*sc);
+          const s0 = 4.2 * sc; sp.scale.set(s0, s0, 1); sp.material.rotation = Math.random()*6.28;
+          g.add(sp); smokes.push({ sp: sp, baseS: s0 });
+        }
+
+        // 4. Expanding Tilted Plasma Shockwave Ring + Molten Debris Sparks
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.6*sc, 1.35*sc, 28), new THREE.MeshBasicMaterial({ color: colorHex || 0xff8c2b, side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
         ring.rotation.set(Math.random()*3, Math.random()*3, 0);
-        const cnt = Math.round(24 * scale), pArr = new Float32Array(cnt*3), vArr = new Float32Array(cnt*3);
+        const cnt = Math.round(32 * sc), pArr = new Float32Array(cnt*3), vArr = new Float32Array(cnt*3);
         for (let i = 0; i < cnt; i++) {
-          const spd = (12 + Math.random()*24)*scale, t = Math.random()*6.283, ph = Math.acos(2*Math.random()-1);
+          const spd = (14 + Math.random()*28)*sc, t = Math.random()*6.283, ph = Math.acos(2*Math.random()-1);
           vArr[i*3]=Math.sin(ph)*Math.cos(t)*spd; vArr[i*3+1]=Math.sin(ph)*Math.sin(t)*spd; vArr[i*3+2]=Math.cos(ph)*spd;
         }
         const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
-        const sparks = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: colorHex || 0xff7b29, size: 0.72*scale, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
-        g.add(core, ring, sparks); scene.add(g);
-        explosions.push({ g: g, core: core, ring: ring, sparks: sparks, vArr: vArr, age: 0, dur: 0.7 * Math.max(0.8, scale) });
-        sfx.tone(175, 32, 0.36, 'sawtooth', 0.1);
+        const sparks = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xffc864, size: 0.85*sc, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+        g.add(ring, sparks); scene.add(g);
+
+        explosions.push({ g: g, core: core, light: light, fireballs: fireballs, smokes: smokes, ring: ring, sparks: sparks, vArr: vArr, sc: sc, age: 0, dur: 0.92 * Math.max(0.85, sc) });
+        sfx.playExplosion(pos.x, sc);
       }
       function spawnShockwave(pos, maxScale, colorHex) {
         const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), new THREE.MeshBasicMaterial({ color: colorHex, wireframe: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending }));
@@ -1612,7 +1857,7 @@
             scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: false, trailColor: 0x3ef4ff, life: 1.2 });
           });
           flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 2.5), 0x3ef4ff, 6.5); vibrate(8);
-          sfx.tone(680, 160, 0.1, 'triangle', 0.06);
+          sfx.playWeapon('PULSE');
         } else if (state.weapon === 'PLASMA') {
           const g = new THREE.Group();
           g.add(
@@ -1623,7 +1868,7 @@
           g.position.set(shipGroup.position.x, shipGroup.position.y - 0.1, shipGroup.position.z - 3.2);
           scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 11, pierce: false, trailColor: 0xff8c2b, spin: true, life: 1.8 });
           flashMuzzle(g.position, 0xff8c2b, 9.5); vibrate([18, 12, 22]);
-          sfx.tone(240, 68, 0.24, 'sawtooth', 0.08);
+          sfx.playWeapon('PLASMA', 0);
         } else if (state.weapon === 'RAILGUN') {
           const g = new THREE.Group();
           g.add(
@@ -1646,7 +1891,7 @@
             scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: xo*2.2, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: false, trailColor: 0x55ffb8, life: 1.1 });
           });
           flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 2.4), 0x55ffb8, 7.0);
-          sfx.tone(820, 260, 0.14, 'square', 0.06);
+          sfx.playWeapon('BURST');
         }
       }
 
@@ -1666,7 +1911,7 @@
           scene.add(m);
           missiles.push({ mesh: m, lock: pool[i % Math.max(1, pool.length)] || null, vel: new THREE.Vector3((i-(count-1)/2)*14, 5, -70), life: 3.6 });
         }
-        sfx.tone(360, 920, 0.26, 'sawtooth', 0.08); vibrate([20, 15, 25]);
+        sfx.playWeapon('MISSILE'); vibrate([20, 15, 25]);
       }
 
       function fireEMP() {
@@ -2242,8 +2487,17 @@
 
         // Muzzle Flash, Weapon Trails, Mach Rings & Boost Vignette
         boostVignette.style.opacity = boosting ? '1' : '0';
-        if (muzzleTimer > 0) { muzzleTimer -= dt; muzzleLight.intensity = Math.max(0, muzzleLight.intensity * (1 - dt * 15)); }
-        else { muzzleLight.intensity = 0; }
+        sfx.updateFlightAudio(boosting, Math.hypot(ix, iy));
+        if (muzzleTimer > 0) {
+          muzzleTimer -= dt;
+          const frac = Math.max(0, muzzleTimer / 0.11);
+          muzzleLight.intensity *= Math.max(0, 1 - dt * 14);
+          shipMuzzleLight.intensity *= Math.max(0, 1 - dt * 14);
+          muzzleSprites.forEach(function (sp) { if (sp.material.opacity > 0) sp.material.opacity = frac; });
+        } else {
+          muzzleLight.intensity = 0; shipMuzzleLight.intensity = 0;
+          muzzleSprites.forEach(function (sp) { sp.material.opacity = 0; });
+        }
         for (let i = vfxTrails.length - 1; i >= 0; i--) {
           const tr = vfxTrails[i]; tr.age += dt; const t = tr.age / tr.maxAge;
           if (t >= 1) { scene.remove(tr.mesh); vfxTrails.splice(i, 1); continue; }
@@ -2254,8 +2508,22 @@
         for (let i = explosions.length - 1; i >= 0; i--) {
           const ex = explosions[i]; ex.age += dt; const t = ex.age / ex.dur;
           if (t >= 1) { scene.remove(ex.g); explosions.splice(i, 1); continue; }
-          ex.core.scale.setScalar(1 + t*2.2); ex.core.material.opacity = Math.max(0, 1 - t*1.6);
-          ex.ring.scale.setScalar(1 + t*5.8); ex.ring.material.opacity = Math.max(0, 1 - t);
+          const cs = (5.2 + t * 8.5) * ex.sc;
+          ex.core.scale.set(cs, cs, 1); ex.core.material.opacity = Math.max(0, 1 - t * 2.4);
+          ex.light.intensity = Math.max(0, 12 * ex.sc * (1 - t * 1.8));
+          ex.fireballs.forEach(function (fb) {
+            fb.sp.position.x += fb.vx * dt; fb.sp.position.y += fb.vy * dt;
+            const fs = fb.baseS * (1 + t * 2.15);
+            fb.sp.scale.set(fs, fs, 1);
+            fb.sp.material.rotation += fb.spin * dt;
+            fb.sp.material.opacity = Math.max(0, (1 - t * t) * 0.95);
+          });
+          ex.smokes.forEach(function (sm) {
+            const ss = sm.baseS * (1 + t * 2.5);
+            sm.sp.scale.set(ss, ss, 1);
+            sm.sp.material.opacity = Math.max(0, (1 - t) * 0.65);
+          });
+          ex.ring.scale.setScalar(1 + t * 6.5); ex.ring.material.opacity = Math.max(0, 1 - t * 1.1);
           const attr = ex.sparks.geometry.attributes.position;
           for (let j = 0; j < attr.count; j++) attr.setXYZ(j, attr.getX(j)+ex.vArr[j*3]*dt, attr.getY(j)+ex.vArr[j*3+1]*dt, attr.getZ(j)+ex.vArr[j*3+2]*dt);
           attr.needsUpdate = true; ex.sparks.material.opacity = Math.max(0, 1 - t);
