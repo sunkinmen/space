@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>PROJECT STARFALL — Final Release (Stages 1–8)</title>
+  <title>星隕計畫 PROJECT STARFALL — 繁體中文行動優化版</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     :root {
@@ -34,68 +34,74 @@
     }
     .hud-layer {
       position: fixed; inset: 0; z-index: 10; pointer-events: none;
-      padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
       display: flex; flex-direction: column; justify-content: space-between;
     }
-    .top-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-    .panel {
-      pointer-events: auto; background: var(--panel); border: 1px solid var(--border);
-      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      padding: 8px 11px;
-      clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+    .top-bar {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 6px; flex-wrap: nowrap; width: 100%;
     }
-    .status-panel { min-width: 215px; }
-    .brand-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 5px; }
-    .brand-title { font-size: 12px; font-weight: 800; letter-spacing: 0.15em; color: var(--cyan); text-transform: uppercase; }
-    .stage-pill { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--amber); border: 1px solid rgba(255,176,58,0.45); padding: 1px 5px; }
-    .bar-row { display: flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 10px; font-variant-numeric: tabular-nums; }
-    .bar-label { width: 42px; color: var(--muted); font-weight: 700; letter-spacing: 0.07em; }
-    .bar-track { flex: 1; height: 7px; background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.12); overflow: hidden; }
+    .panel {
+      pointer-events: auto; background: rgba(6, 13, 24, 0.58);
+      border: 1px solid rgba(44, 232, 255, 0.24);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      padding: 5px 8px;
+      border-radius: 6px;
+    }
+    .status-panel { width: 158px; flex-shrink: 0; }
+    .brand-row { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 3px; }
+    .brand-title { font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; color: var(--cyan); white-space: nowrap; }
+    .stage-pill { font-size: 8.5px; font-weight: 700; color: var(--amber); border: 1px solid rgba(255,176,58,0.45); padding: 0px 4px; border-radius: 3px; }
+    .bar-row { display: flex; align-items: center; gap: 5px; margin-top: 2.5px; font-size: 9px; font-variant-numeric: tabular-nums; }
+    .bar-label { width: 24px; color: var(--muted); font-weight: 700; }
+    .bar-track { flex: 1; height: 5px; background: rgba(255,255,255,0.10); border-radius: 2px; overflow: hidden; }
     .bar-fill { height: 100%; width: 100%; transition: width 0.08s linear; }
     .bar-fill.hull { background: linear-gradient(90deg, #ff4558, #4effa8); }
     .bar-fill.shield { background: linear-gradient(90deg, #1b9cff, #4ef4ff); }
     .bar-fill.heat { background: linear-gradient(90deg, #2ce8ff, #ffb03a, #ff3b4e); }
     .bar-fill.boost { background: linear-gradient(90deg, #2ce8ff, #ffb03a); }
-    .bar-val { width: 34px; text-align: right; font-weight: 700; }
+    .bar-val { width: 26px; text-align: right; font-weight: 700; font-size: 8.5px; }
 
-    .mission-panel { text-align: center; min-width: 235px; max-width: 360px; }
-    .sector-tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--cyan); text-transform: uppercase; }
-    .wave-title { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: var(--amber); text-transform: uppercase; margin-top: 2px; }
-    .score-num { font-size: 17px; font-weight: 800; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; color: #fff; margin-top: 2px; }
-    .reward-row { font-size: 9.5px; letter-spacing: 0.07em; color: var(--green); margin-top: 2px; }
+    .mission-panel {
+      text-align: center; padding: 4px 10px; min-width: 0; flex: 0 1 250px;
+      background: rgba(6, 13, 24, 0.45);
+    }
+    .sector-tag { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; color: var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wave-title { font-size: 10px; font-weight: 800; color: var(--amber); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .score-num { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; color: #fff; margin-top: 1px; }
+    .reward-row { font-size: 8.5px; color: var(--green); margin-top: 1px; white-space: nowrap; }
 
-    .boss-bar-wrap { display: none; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,59,78,0.35); }
+    .boss-bar-wrap { display: none; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,59,78,0.35); }
     .boss-bar-wrap.active { display: block; }
-    .boss-name { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; color: var(--crimson); }
-    .boss-track { width: 100%; height: 9px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,59,78,0.65); margin-top: 4px; overflow: hidden; }
+    .boss-name { font-size: 9.5px; font-weight: 800; color: var(--crimson); }
+    .boss-track { width: 100%; height: 6px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,59,78,0.65); margin-top: 2px; overflow: hidden; border-radius: 2px; }
     .boss-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff223a, #ff8c2b); transition: width 0.08s linear; }
-    .boss-sub { font-size: 9px; letter-spacing: 0.09em; color: #ffba99; margin-top: 3px; }
+    .boss-sub { font-size: 8px; color: #ffba99; margin-top: 2px; }
 
     .warning-banner {
-      position: fixed; top: 21%; left: 50%; transform: translateX(-50%);
-      z-index: 20; pointer-events: none; padding: 9px 24px;
-      background: rgba(30, 8, 14, 0.90); border: 1.5px solid var(--crimson);
-      color: #ffd8de; font-size: 12.5px; font-weight: 800; letter-spacing: 0.18em;
-      text-transform: uppercase; text-align: center; box-shadow: 0 0 26px rgba(255,42,68,0.45);
-      opacity: 0; transition: opacity 0.25s;
+      position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+      z-index: 20; pointer-events: none; padding: 5px 14px; border-radius: 4px;
+      background: rgba(34, 8, 14, 0.84); border: 1px solid var(--crimson);
+      color: #ffd8de; font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
+      text-align: center; box-shadow: 0 0 18px rgba(255,42,68,0.38);
+      opacity: 0; transition: opacity 0.22s; white-space: nowrap;
     }
     .warning-banner.show { opacity: 1; }
     .toast-box {
-      position: fixed; top: 76px; right: 14px; z-index: 28; pointer-events: none;
-      display: flex; flex-direction: column; gap: 6px;
+      position: fixed; top: 54px; right: 10px; z-index: 28; pointer-events: none;
+      display: flex; flex-direction: column; gap: 4px;
     }
     .toast {
-      background: rgba(10, 26, 36, 0.92); border: 1px solid var(--green); color: #d8ffec;
-      font-size: 11px; font-weight: 700; padding: 7px 12px; letter-spacing: 0.06em;
-      box-shadow: 0 0 18px rgba(78, 255, 168, 0.3);
+      background: rgba(10, 26, 36, 0.88); border: 1px solid var(--green); color: #d8ffec;
+      font-size: 10px; font-weight: 700; padding: 5px 9px; border-radius: 4px;
     }
 
-    .controls-cluster { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .controls-cluster { display: flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 4px 6px; }
     .hud-btn {
-      pointer-events: auto; background: rgba(12, 22, 36, 0.88);
+      pointer-events: auto; background: rgba(12, 22, 36, 0.82);
       border: 1px solid rgba(44, 232, 255, 0.32); color: var(--text);
-      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; padding: 5px 8px;
-      cursor: pointer; text-transform: uppercase; transition: 0.14s;
+      font-size: 10px; font-weight: 700; padding: 4px 7px; border-radius: 4px;
+      cursor: pointer; transition: 0.14s; white-space: nowrap;
     }
     .hud-btn:hover { border-color: var(--cyan); background: rgba(24, 48, 72, 0.92); }
     .hud-btn.active { background: rgba(44, 232, 255, 0.25); border-color: var(--cyan); color: #fff; }
@@ -104,63 +110,69 @@
 
     .reticle {
       position: fixed; left: 50%; top: 47%; transform: translate(-50%, -50%);
-      width: 44px; height: 44px; pointer-events: none; z-index: 5; opacity: 0.65;
+      width: 40px; height: 40px; pointer-events: none; z-index: 5; opacity: 0.62;
     }
     .reticle::before, .reticle::after {
       content: ""; position: absolute; inset: 0; border: 1px solid rgba(44, 232, 255, 0.6); border-radius: 50%;
     }
-    .reticle::after { inset: 14px; border-color: rgba(255, 176, 58, 0.8); }
+    .reticle::after { inset: 13px; border-color: rgba(255, 176, 58, 0.8); }
 
     .lock-box {
-      position: absolute; width: 40px; height: 40px; transform: translate(-50%, -50%);
+      position: absolute; width: 36px; height: 36px; transform: translate(-50%, -50%);
       border: 1.5px solid var(--crimson); box-shadow: 0 0 8px rgba(255, 59, 78, 0.45); pointer-events: none;
     }
-    .lock-box.wp { width: 28px; height: 28px; border-color: #ff9c2b; border-radius: 50%; box-shadow: 0 0 12px rgba(255, 140, 43, 0.8); }
+    .lock-box.wp { width: 26px; height: 26px; border-color: #ff9c2b; border-radius: 50%; box-shadow: 0 0 12px rgba(255, 140, 43, 0.8); }
     .lock-box.stunned { border-color: var(--cyan); box-shadow: 0 0 12px rgba(44, 232, 255, 0.8); }
     .lock-hp { position: absolute; top: -6px; left: 0; right: 0; height: 3px; background: rgba(0,0,0,0.65); }
     .lock-hp-fill { height: 100%; background: var(--crimson); }
-    .lock-tag { position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%); font-size: 7.5px; font-weight: 800; letter-spacing: 0.07em; color: var(--amber); white-space: nowrap; }
+    .lock-tag { position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%); font-size: 8px; font-weight: 800; color: var(--amber); white-space: nowrap; }
     .crit-pop { position: absolute; transform: translate(-50%, -50%); font-size: 11px; font-weight: 800; pointer-events: none; text-shadow: 0 0 8px rgba(0,0,0,0.95); }
 
-    .bottom-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+    .bottom-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; width: 100%; }
     .joy-zone {
-      pointer-events: auto; width: 106px; height: 106px; border-radius: 50%;
+      pointer-events: auto; width: 92px; height: 92px; border-radius: 50%; flex-shrink: 0;
       border: 1px solid rgba(44, 232, 255, 0.35);
-      background: radial-gradient(circle, rgba(44, 232, 255, 0.12) 0%, rgba(5, 12, 22, 0.58) 75%);
+      background: radial-gradient(circle, rgba(44, 232, 255, 0.10) 0%, rgba(5, 12, 22, 0.42) 75%);
       position: relative; display: flex; align-items: center; justify-content: center; touch-action: none;
     }
     .joy-knob {
-      width: 38px; height: 38px; border-radius: 50%;
+      width: 34px; height: 34px; border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #8ef6ff, #1ca6c7);
-      border: 2px solid rgba(255,255,255,0.75); box-shadow: 0 0 16px rgba(44,232,255,0.5); pointer-events: none;
+      border: 2px solid rgba(255,255,255,0.75); box-shadow: 0 0 14px rgba(44,232,255,0.45); pointer-events: none;
     }
-    .joy-label { position: absolute; bottom: 8px; font-size: 8px; letter-spacing: 0.14em; color: rgba(185,230,248,0.7); pointer-events: none; }
+    .joy-label { position: absolute; bottom: 7px; font-size: 8px; letter-spacing: 0.1em; color: rgba(185,230,248,0.65); pointer-events: none; }
 
-    .arsenal-dock { pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 5px; max-width: 55vw; }
-    .weapon-strip { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
-    .w-slot {
-      background: rgba(10, 18, 30, 0.86); border: 1px solid rgba(44, 232, 255, 0.28);
-      color: var(--text); font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
-      padding: 5px 7px; cursor: pointer; text-transform: uppercase;
+    .arsenal-dock {
+      pointer-events: auto; display: flex; flex-direction: row; align-items: center; justify-content: center;
+      gap: 3px; flex-wrap: nowrap; overflow-x: auto; max-width: calc(100vw - 320px);
+      padding: 3px 5px; background: rgba(6, 13, 24, 0.50); border: 1px solid rgba(44,232,255,0.2); border-radius: 6px;
+      scrollbar-width: none;
     }
-    .w-slot.active { background: rgba(44, 232, 255, 0.25); border-color: var(--cyan); color: #fff; }
+    .arsenal-dock::-webkit-scrollbar { display: none; }
+    .weapon-strip { display: flex; gap: 3px; flex-wrap: nowrap; align-items: center; }
+    .strip-sep { width: 1px; height: 18px; background: rgba(44,232,255,0.28); margin: 0 2px; flex-shrink: 0; }
+    .w-slot {
+      background: rgba(10, 18, 30, 0.78); border: 1px solid rgba(44, 232, 255, 0.25);
+      color: var(--text); font-size: 9px; font-weight: 700;
+      padding: 4px 6px; cursor: pointer; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+    }
+    .w-slot.active { background: rgba(44, 232, 255, 0.28); border-color: var(--cyan); color: #fff; }
     .w-slot.special { border-color: rgba(255, 176, 58, 0.40); color: #ffd999; }
     .w-slot.ult { border-color: rgba(182, 120, 255, 0.55); color: #dfc2ff; }
-    .w-slot.ult.ready { background: rgba(182, 120, 255, 0.34); border-color: #d6a4ff; color: #fff; box-shadow: 0 0 14px rgba(182,120,255,0.55); }
+    .w-slot.ult.ready { background: rgba(182, 120, 255, 0.38); border-color: #d6a4ff; color: #fff; box-shadow: 0 0 12px rgba(182,120,255,0.55); }
     .w-slot:disabled { opacity: 0.42; cursor: not-allowed; }
 
-    .action-pad { display: flex; align-items: flex-end; gap: 7px; pointer-events: auto; }
+    .action-pad { display: flex; align-items: flex-end; gap: 6px; pointer-events: auto; flex-shrink: 0; }
     .tactile-btn {
-      width: 66px; height: 66px; border-radius: 50%;
-      border: 2px solid rgba(44, 232, 255, 0.65);
-      background: radial-gradient(circle, rgba(44, 232, 255, 0.22), rgba(6, 14, 26, 0.88));
-      color: #e9fbff; font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em;
-      text-transform: uppercase; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 1.5px solid rgba(44, 232, 255, 0.6);
+      background: radial-gradient(circle, rgba(44, 232, 255, 0.18), rgba(6, 14, 26, 0.72));
+      color: #e9fbff; font-size: 10px; font-weight: 800;
+      cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
     .tactile-btn.engaged, .tactile-btn:active { transform: scale(0.92); background: radial-gradient(circle, rgba(44,232,255,0.52), rgba(10,32,54,0.92)); }
-    .tactile-btn.fire-btn { width: 76px; height: 76px; border-color: var(--cyan); }
-    .tactile-btn.boost-btn { border-color: var(--amber); color: #ffe2b3; background: radial-gradient(circle, rgba(255,176,58,0.22), rgba(22,14,8,0.88)); }
+    .tactile-btn.fire-btn { width: 66px; height: 66px; border-color: var(--cyan); font-size: 11px; }
+    .tactile-btn.boost-btn { border-color: var(--amber); color: #ffe2b3; background: radial-gradient(circle, rgba(255,176,58,0.18), rgba(22,14,8,0.72)); }
 
     /* Campaign / Hangar / Achievements Modal */
     .modal-overlay {
@@ -182,13 +194,15 @@
     .card-sub { font-size: 10.5px; color: var(--muted); line-height: 1.4; }
     .card-meta { font-size: 10px; color: var(--amber); font-weight: 700; }
 
-    @media (max-width: 720px) {
-      .status-panel { min-width: 170px; }
-      .joy-zone { width: 88px; height: 88px; }
-      .joy-knob { width: 32px; height: 32px; }
-      .tactile-btn { width: 54px; height: 54px; font-size: 8.5px; }
-      .tactile-btn.fire-btn { width: 64px; height: 64px; }
-      .w-slot { font-size: 8px; padding: 4px 5px; }
+    @media (max-height: 460px), (max-width: 760px) {
+      .status-panel { width: 138px; padding: 4px 6px; }
+      .mission-panel { padding: 3px 8px; }
+      .joy-zone { width: 78px; height: 78px; }
+      .joy-knob { width: 28px; height: 28px; }
+      .tactile-btn { width: 48px; height: 48px; font-size: 9px; }
+      .tactile-btn.fire-btn { width: 58px; height: 58px; font-size: 10px; }
+      .arsenal-dock { max-width: calc(100vw - 265px); }
+      .w-slot { font-size: 8.5px; padding: 3px 5px; }
     }
 
     #boost-vignette {
@@ -221,107 +235,105 @@
   <div id="lock-layer"></div>
   <div id="damage-flash"></div>
   <div id="boost-vignette"></div>
-  <div id="warp-overlay"><div class="warp-title" id="warp-title">WARP SLIPSTREAM</div><div class="warp-sub" id="warp-sub">SECTOR 01 // THE NEBULA FRONTIER</div></div>
-  <div id="orient-bar" class="show"><span>ROTATE TO LANDSCAPE FOR OPTIMAL CONTROLS</span><button class="hud-btn amber" id="dismiss-orient" style="padding:2px 6px;">OK</button></div>
+  <div id="warp-overlay"><div class="warp-title" id="warp-title">超空間躍遷</div><div class="warp-sub" id="warp-sub">第一星域 // 星雲邊境</div></div>
+  <div id="orient-bar" class="show"><span>建議旋轉為橫向螢幕以獲得最佳操控體驗</span><button class="hud-btn amber" id="dismiss-orient" style="padding:2px 6px;">知道了</button></div>
   <div class="reticle" id="reticle"></div>
-  <div class="warning-banner" id="warning-banner">WARNING // CAPITAL SIGNATURE</div>
+  <div class="warning-banner" id="warning-banner">警告 // 偵測到大型旗艦訊號</div>
   <div class="toast-box" id="toast-box"></div>
 
   <div class="hud-layer">
     <div class="top-bar">
       <div class="panel status-panel">
         <div class="brand-row">
-          <div class="brand-title">VX-09 VANGUARD</div>
+          <div class="brand-title">先鋒號 VX-09</div>
           <div class="stage-pill" id="pilot-lv-pill">LV 1</div>
         </div>
-        <div class="bar-row"><span class="bar-label">HULL</span><div class="bar-track"><div class="bar-fill hull" id="hull-fill"></div></div><span class="bar-val" id="hull-val">100</span></div>
-        <div class="bar-row"><span class="bar-label">SHIELD</span><div class="bar-track"><div class="bar-fill shield" id="shield-fill"></div></div><span class="bar-val" id="shield-val">100</span></div>
-        <div class="bar-row"><span class="bar-label">HEAT</span><div class="bar-track"><div class="bar-fill heat" id="heat-fill" style="width:0%"></div></div><span class="bar-val" id="heat-val">0%</span></div>
-        <div class="bar-row"><span class="bar-label">BOOST</span><div class="bar-track"><div class="bar-fill boost" id="boost-fill"></div></div><span class="bar-val" id="boost-val">100%</span></div>
+        <div class="bar-row"><span class="bar-label">裝甲</span><div class="bar-track"><div class="bar-fill hull" id="hull-fill"></div></div><span class="bar-val" id="hull-val">100</span></div>
+        <div class="bar-row"><span class="bar-label">護盾</span><div class="bar-track"><div class="bar-fill shield" id="shield-fill"></div></div><span class="bar-val" id="shield-val">100</span></div>
+        <div class="bar-row"><span class="bar-label">過熱</span><div class="bar-track"><div class="bar-fill heat" id="heat-fill" style="width:0%"></div></div><span class="bar-val" id="heat-val">0%</span></div>
+        <div class="bar-row"><span class="bar-label">推進</span><div class="bar-track"><div class="bar-fill boost" id="boost-fill"></div></div><span class="bar-val" id="boost-val">100%</span></div>
       </div>
 
       <div class="panel mission-panel">
-        <div class="sector-tag" id="sector-tag">SECTOR 01 // THE NEBULA FRONTIER</div>
-        <div class="wave-title" id="wave-title">WAVE 1/5 // FLEET DESTRUCTION</div>
+        <div class="sector-tag" id="sector-tag">第一星域 // 星雲邊境</div>
+        <div class="wave-title" id="wave-title">第 1/5 波 // 艦隊殲滅戰</div>
         <div class="score-num" id="score-val">000,000</div>
-        <div class="reward-row" id="reward-row">CREDITS 600 • XP 0 • COMBO x1.0</div>
+        <div class="reward-row" id="reward-row">信用點 600 • 連擊 x1.0</div>
         <div class="boss-bar-wrap" id="boss-bar-wrap">
-          <div class="boss-name" id="boss-name">ASTRAL LEVIATHAN</div>
+          <div class="boss-name" id="boss-name">星界利維坦</div>
           <div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div>
-          <div class="boss-sub" id="boss-sub">PHASE 1/3 • 4 CORES ONLINE</div>
+          <div class="boss-sub" id="boss-sub">階段 1/3 • 4 座反應爐運作中</div>
         </div>
       </div>
 
       <div class="panel controls-cluster">
-        <button class="hud-btn active" id="open-hub-btn">CAMPAIGN / HANGAR</button>
-        <button class="hud-btn crimson" id="skip-boss-btn">BOSS</button>
-        <button class="hud-btn active" data-tier="HIGH">HIGH</button>
-        <button class="hud-btn" data-tier="BALANCED">BAL</button>
-        <button class="hud-btn" data-tier="PERFORMANCE">PERF</button>
-        <button class="hud-btn" id="cam-btn">CAM: COMBAT</button>
-        <button class="hud-btn amber" id="audio-btn">AUDIO: OFF</button>
+        <button class="hud-btn active" id="open-hub-btn">戰役 / 機庫</button>
+        <button class="hud-btn crimson" id="skip-boss-btn">頭目戰</button>
+        <button class="hud-btn amber" id="audio-btn">靜音</button>
       </div>
     </div>
 
     <div class="bottom-bar">
-      <div class="joy-zone" id="joy-zone" aria-label="Flight Stick">
+      <div class="joy-zone" id="joy-zone" aria-label="飛行搖桿">
         <div class="joy-knob" id="joy-knob"></div>
-        <div class="joy-label">FLIGHT</div>
+        <div class="joy-label">飛行</div>
       </div>
 
       <div class="arsenal-dock">
         <div class="weapon-strip">
-          <button class="w-slot active" data-weapon="PULSE">1 PULSE</button>
-          <button class="w-slot" data-weapon="PLASMA">2 PLASMA</button>
-          <button class="w-slot" data-weapon="RAILGUN">3 RAIL</button>
-          <button class="w-slot" data-weapon="PHOTON_BEAM">4 PHOTON</button>
-          <button class="w-slot" data-weapon="BURST">5 BURST</button>
+          <button class="w-slot active" data-weapon="PULSE">脈衝</button>
+          <button class="w-slot" data-weapon="PLASMA">電漿</button>
+          <button class="w-slot" data-weapon="RAILGUN">磁軌</button>
+          <button class="w-slot" data-weapon="PHOTON_BEAM">光子</button>
+          <button class="w-slot" data-weapon="BURST">連發</button>
         </div>
+        <div class="strip-sep"></div>
         <div class="weapon-strip">
-          <button class="w-slot special" id="btn-missile">Q HOMING (<span id="missile-cnt">14</span>)</button>
-          <button class="w-slot special" id="btn-multi">E SWARM</button>
-          <button class="w-slot special" id="btn-emp">F EMP</button>
-          <button class="w-slot special" id="btn-bomb">R E-BOMB</button>
-          <button class="w-slot ult" id="btn-ult">X NOVA <span id="ult-pct">0%</span></button>
+          <button class="w-slot special" id="btn-missile">飛彈(<span id="missile-cnt">14</span>)</button>
+          <button class="w-slot special" id="btn-multi">齊射</button>
+          <button class="w-slot special" id="btn-emp">電磁</button>
+          <button class="w-slot special" id="btn-bomb">重力</button>
+          <button class="w-slot ult" id="btn-ult">必殺 <span id="ult-pct">0%</span></button>
         </div>
       </div>
 
       <div class="action-pad">
-        <button class="tactile-btn" id="shield-btn">SHIELD<span style="font-size:8px;opacity:0.75;">HOLD V</span></button>
-        <button class="tactile-btn boost-btn" id="boost-btn">BOOST<span style="font-size:8px;opacity:0.75;">SHIFT</span></button>
-        <button class="tactile-btn fire-btn" id="fire-btn">FIRE<span style="font-size:8px;opacity:0.75;">SPACE</span></button>
+        <button class="tactile-btn" id="shield-btn">護盾</button>
+        <button class="tactile-btn boost-btn" id="boost-btn">加速</button>
+        <button class="tactile-btn fire-btn" id="fire-btn">射擊</button>
       </div>
     </div>
   </div>
 
-  <!-- Campaign / Hangar / Profile Hub -->
+  <!-- 繁體中文指揮中心（戰役 / 機庫 / 系統設定 / 成就） -->
   <div class="modal-overlay" id="hub-overlay">
     <div class="panel hub-card">
       <div class="hub-header">
         <div>
-          <div class="brand-title" style="font-size:14px;">STARFALL COMMAND HUB</div>
-          <div style="font-size:10.5px;color:var(--green);margin-top:2px;" id="hub-wallet">CREDITS: 600 • PILOT LV 1 • HIGH SCORE: 0</div>
+          <div class="brand-title" style="font-size:14px;">星隕指揮中心</div>
+          <div style="font-size:10.5px;color:var(--green);margin-top:2px;" id="hub-wallet">信用點：600 • 飛官等級 LV 1</div>
         </div>
         <div class="hub-tabs">
-          <button class="hud-btn active" data-hubtab="campaign">5-SECTOR CAMPAIGN</button>
-          <button class="hud-btn" data-hubtab="hangar">HANGAR UPGRADES</button>
-          <button class="hud-btn" data-hubtab="profile">ACHIEVEMENTS</button>
-          <button class="hud-btn crimson" id="close-hub-btn">RESUME</button>
+          <button class="hud-btn active" data-hubtab="campaign">五大星域</button>
+          <button class="hud-btn" data-hubtab="hangar">機庫升級</button>
+          <button class="hud-btn" data-hubtab="settings">畫質與操控</button>
+          <button class="hud-btn" data-hubtab="profile">成就紀錄</button>
+          <button class="hud-btn crimson" id="close-hub-btn">返回戰鬥</button>
         </div>
       </div>
       <div id="hub-content"></div>
     </div>
   </div>
 
-  <!-- Mission Victory / Defeat Modal -->
+  <!-- 任務結算視窗 -->
   <div class="modal-overlay" id="end-overlay">
-    <div class="panel" style="text-align:center;padding:24px 30px;max-width:410px;">
-      <div class="brand-title" id="end-title" style="font-size:16px;">SECTOR CLEARED</div>
-      <div style="font-size:12px;color:var(--muted);margin:10px 0 16px;" id="end-stats">SCORE 0</div>
+    <div class="panel" style="text-align:center;padding:22px 28px;max-width:400px;">
+      <div class="brand-title" id="end-title" style="font-size:15px;">星域肅清完成</div>
+      <div style="font-size:12px;color:var(--muted);margin:10px 0 16px;" id="end-stats">總分 0</div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-        <button class="hud-btn active" id="next-sector-btn" style="padding:9px 16px;">NEXT SECTOR</button>
-        <button class="hud-btn amber" id="end-hangar-btn" style="padding:9px 16px;">HANGAR UPGRADES</button>
-        <button class="hud-btn" id="restart-btn" style="padding:9px 16px;">REDEPLOY</button>
+        <button class="hud-btn active" id="next-sector-btn" style="padding:8px 14px;">前往下一星域</button>
+        <button class="hud-btn amber" id="end-hangar-btn" style="padding:8px 14px;">機庫升級</button>
+        <button class="hud-btn" id="restart-btn" style="padding:8px 14px;">重新出擊</button>
       </div>
     </div>
   </div>
@@ -349,29 +361,36 @@
       }
       let saveData = loadSave();
 
+      // 手機震動回饋系統 (Vibration API)
+      let hapticsEnabled = true;
+      function vibrate(pattern) {
+        if (!hapticsEnabled) return;
+        try { if (navigator && typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch (e) {}
+      }
+
       const SECTORS = [
-        { id: 1, code: 'SECTOR 01', name: 'THE NEBULA FRONTIER', mission: 'FLEET DESTRUCTION', nebA: 0x4a2b7a, nebB: 0x1b4d89, key: 0xd4ecff, rim: 0xa74bff, landmark: 'PLANET', boss: 'ASTRAL LEVIATHAN', bossHp: 2400, cr: 1800, xp: 900, diff: 1.0 },
-        { id: 2, code: 'SECTOR 02', name: 'THE SHATTERED BELT',  mission: 'INTERCEPTION',      nebA: 0x6e431f, nebB: 0x2a333d, key: 0xffd7a6, rim: 0xff8c2b, landmark: 'BELT',   boss: 'KRAG-09 ORE CRUSHER', bossHp: 3000, cr: 2400, xp: 1200, diff: 1.2 },
-        { id: 3, code: 'SECTOR 03', name: 'THE BLACK SUN SYSTEM',mission: 'HIGH-RISK SURVIVAL', nebA: 0x2e120a, nebB: 0x8f340e, key: 0xffcc70, rim: 0xff5a1f, landmark: 'BLACKSUN', boss: 'HELIOS SINGULARITY CARRIER', bossHp: 3700, cr: 3200, xp: 1600, diff: 1.4 },
-        { id: 4, code: 'SECTOR 04', name: 'THE FORGOTTEN FLEET', mission: 'SECTOR DEFENSE',     nebA: 0x18303b, nebB: 0x2c4b52, key: 0xbfe8f2, rim: 0x49c2d6, landmark: 'DERELICT', boss: 'SOVEREIGN REVENANT', bossHp: 4400, cr: 4000, xp: 2100, diff: 1.6 },
-        { id: 5, code: 'SECTOR 05', name: 'THE TITAN GATE',      mission: 'BOSS ELIMINATION',   nebA: 0x12383a, nebB: 0x6e5420, key: 0xe6fff9, rim: 0x2ef2e0, landmark: 'TITANGATE', boss: 'ARCHON GATEKEEPER', bossHp: 5400, cr: 6000, xp: 3500, diff: 1.85 }
+        { id: 1, code: '第一星域', name: '星雲邊境',     mission: '艦隊殲滅戰', nebA: 0x4a2b7a, nebB: 0x1b4d89, key: 0xd4ecff, rim: 0xa74bff, landmark: 'PLANET',    boss: '星界利維坦',     bossHp: 2400, cr: 1800, xp: 900,  diff: 1.0 },
+        { id: 2, code: '第二星域', name: '破碎小行星帶', mission: '攔截突襲戰', nebA: 0x6e431f, nebB: 0x2a333d, key: 0xffd7a6, rim: 0xff8c2b, landmark: 'BELT',      boss: '克拉格-09 碎礦巨艦', bossHp: 3000, cr: 2400, xp: 1200, diff: 1.2 },
+        { id: 3, code: '第三星域', name: '黑日星系',     mission: '高危生存戰', nebA: 0x2e120a, nebB: 0x8f340e, key: 0xffcc70, rim: 0xff5a1f, landmark: 'BLACKSUN',  boss: '赫利俄斯奇點母艦', bossHp: 3700, cr: 3200, xp: 1600, diff: 1.4 },
+        { id: 4, code: '第四星域', name: '遺忘艦隊墳場', mission: '星域防衛戰', nebA: 0x18303b, nebB: 0x2c4b52, key: 0xbfe8f2, rim: 0x49c2d6, landmark: 'DERELICT',  boss: '主權亡魂超級航母', bossHp: 4400, cr: 4000, xp: 2100, diff: 1.6 },
+        { id: 5, code: '第五星域', name: '泰坦之門',     mission: '終極頭目戰', nebA: 0x12383a, nebB: 0x6e5420, key: 0xe6fff9, rim: 0x2ef2e0, landmark: 'TITANGATE', boss: '執政官守門者',   bossHp: 5400, cr: 6000, xp: 3500, diff: 1.85 }
       ];
 
       const UPGRADE_DEFS = [
-        { key: 'hull',      name: 'Hull Composite Plating', desc: '+28 Max Hull Integrity per level' },
-        { key: 'shield',    name: 'Hex Shield Capacitor',   desc: '+28 Max Shield & faster regen' },
-        { key: 'weapons',   name: 'Weapon Core Overclock',  desc: '+22% Weapon Damage & faster cooling' },
-        { key: 'thrusters', name: 'Vector Ion Thrusters',   desc: '+12% Agility & faster Boost recharge' },
-        { key: 'ordnance',  name: 'Ordnance Missile Bay',   desc: '+4 Max Missiles & shorter special CD' }
+        { key: 'hull',      name: '裝甲複合鍍層', desc: '每級提升 +28 最大艦體裝甲上限' },
+        { key: 'shield',    name: '六角護盾電容', desc: '每級提升 +28 最大護盾與充能速度' },
+        { key: 'weapons',   name: '武器核心超頻', desc: '每級提升 +22% 武器傷害與散熱效率' },
+        { key: 'thrusters', name: '矢量離子推進', desc: '每級提升 +12% 機動速度與推進回復' },
+        { key: 'ordnance',  name: '飛彈彈艙擴充', desc: '每級增加 +4 枚飛彈並縮短技能冷卻' }
       ];
       const UPGRADE_COSTS = [0, 450, 950, 1750, 3000];
 
       const ACHIEVEMENTS = [
-        { id: 'first_blood', title: 'First Blood (1 Kill)', cr: 250, check: function (s) { return s.totalKills >= 1; } },
-        { id: 'ace_pilot',   title: 'Ace Pilot (20 Kills)', cr: 600, check: function (s) { return s.totalKills >= 20; } },
-        { id: 'boss_slayer', title: 'Dreadnought Slayer (1 Boss)', cr: 1000, check: function (s) { return s.bossesDefeated >= 1; } },
-        { id: 'retrofit',    title: 'Retrofit Complete (Any Lv3)', cr: 500, check: function (s) { return Object.keys(s.upgrades).some(function (k) { return s.upgrades[k] >= 3; }); } },
-        { id: 'titan_clear', title: 'Titan Conqueror (Sector 5 Clear)', cr: 2500, check: function (s) { return s.unlockedSectors >= 5 && s.bossesDefeated >= 2; } }
+        { id: 'first_blood', title: '初戰告捷（擊毀 1 架敵機）',     cr: 250,  check: function (s) { return s.totalKills >= 1; } },
+        { id: 'ace_pilot',   title: '王牌飛官（累積擊毀 20 架）',     cr: 600,  check: function (s) { return s.totalKills >= 20; } },
+        { id: 'boss_slayer', title: '巨艦終結者（擊毀 1 艘頭目艦）',  cr: 1000, check: function (s) { return s.bossesDefeated >= 1; } },
+        { id: 'retrofit',    title: '艦體改裝完成（任一升級達 Lv3）', cr: 500,  check: function (s) { return Object.keys(s.upgrades).some(function (k) { return s.upgrades[k] >= 3; }); } },
+        { id: 'titan_clear', title: '泰坦征服者（解鎖並稱霸星域）',   cr: 2500, check: function (s) { return s.unlockedSectors >= 5 && s.bossesDefeated >= 2; } }
       ];
 
       function getStats() {
@@ -402,11 +421,11 @@
       };
 
       const ENEMY_SPECS = {
-        SCOUT:       { tag: 'SCOUT',        hp: 58,  sh: 0,   spd: 35, r: 2.1, score: 220,  cr: 45,  xp: 25,  fcd: 1.65 },
-        INTERCEPTOR: { tag: 'INTERCEPTOR',  hp: 105, sh: 35,  spd: 27, r: 2.5, score: 380,  cr: 80,  xp: 45,  fcd: 1.35 },
-        DESTROYER:   { tag: 'DESTROYER',    hp: 340, sh: 140, spd: 12, r: 4.5, score: 950,  cr: 220, xp: 120, fcd: 2.15 },
-        BOMBER:      { tag: 'BOMBER',       hp: 175, sh: 60,  spd: 17, r: 3.1, score: 600,  cr: 140, xp: 80,  fcd: 2.75 },
-        ELITE:       { tag: 'ELITE WRAITH', hp: 290, sh: 190, spd: 24, r: 3.0, score: 1500, cr: 380, xp: 210, fcd: 1.15 }
+        SCOUT:       { tag: '偵察機',        hp: 58,  sh: 0,   spd: 35, r: 2.1, score: 220,  cr: 45,  xp: 25,  fcd: 1.65 },
+        INTERCEPTOR: { tag: '攔截機',  hp: 105, sh: 35,  spd: 27, r: 2.5, score: 380,  cr: 80,  xp: 45,  fcd: 1.35 },
+        DESTROYER:   { tag: '重驅逐艦',    hp: 340, sh: 140, spd: 12, r: 4.5, score: 950,  cr: 220, xp: 120, fcd: 2.15 },
+        BOMBER:      { tag: '轟炸機',       hp: 175, sh: 60,  spd: 17, r: 3.1, score: 600,  cr: 140, xp: 80,  fcd: 2.75 },
+        ELITE:       { tag: '菁英幽靈機', hp: 290, sh: 190, spd: 24, r: 3.0, score: 1500, cr: 380, xp: 210, fcd: 1.15 }
       };
 
       const WAVE_TEMPLATES = [
@@ -434,14 +453,14 @@
           const req = saveData.level * 500;
           if (saveData.xp >= req) {
             saveData.xp -= req; saveData.level++; saveData.credits += 300;
-            showToast('PILOT LEVEL UP! LV ' + saveData.level + ' (+300 CR)');
+            showToast('飛官升級！LV ' + saveData.level + '（+300 信用點）');
           }
         }
         ACHIEVEMENTS.forEach(function (a) {
           if (saveData.achievements.indexOf(a.id) === -1 && a.check(saveData)) {
             saveData.achievements.push(a.id);
             saveData.credits += a.cr;
-            showToast('ACHIEVEMENT: ' + a.title + ' (+' + a.cr + ' CR)');
+            showToast('解鎖成就：' + a.title + '（+' + a.cr + ' 信用點）');
           }
         });
         persistSave();
@@ -1362,10 +1381,10 @@
         root.add(bossGlow);
 
         const wpDefs = [
-          { tag: 'CORE A', pos: [-9.5, 1.4, 8.5] },
-          { tag: 'CORE B', pos: [ 9.5, 1.4, 8.5] },
-          { tag: 'CORE C', pos: [-9.5,-2.2,-6.5] },
-          { tag: 'CORE D', pos: [ 9.5,-2.2,-6.5] }
+          { tag: '核心 A', pos: [-9.5, 1.4, 8.5] },
+          { tag: '核心 B', pos: [ 9.5, 1.4, 8.5] },
+          { tag: '核心 C', pos: [-9.5,-2.2,-6.5] },
+          { tag: '核心 D', pos: [ 9.5,-2.2,-6.5] }
         ];
         const wpHp = Math.round(sec.bossHp * 0.17);
         const wps = wpDefs.map(function (d) {
@@ -1389,9 +1408,9 @@
           beamState: 'IDLE', beamTimer: 4.5,
           dying: false, deathTimer: 0, deathPulseCd: 0
         };
-        document.getElementById('boss-name').textContent = sec.boss + ' — CAPITAL CLASS';
+        document.getElementById('boss-name').textContent = sec.boss + ' — 旗艦級頭目';
         document.getElementById('boss-bar-wrap').classList.add('active');
-        showBanner('WARNING // ' + sec.boss + ' DETECTED', 2800);
+        showBanner('警告 // 偵測到頭目艦：' + sec.boss, 2800);
         sfx.tone(85, 42, 0.9, 'sawtooth', 0.14);
       }
 
@@ -1413,11 +1432,11 @@
         const sec = SECTORS[currentSectorIdx];
         state.waveIdx = idx;
         if (idx >= 4) {
-          document.getElementById('wave-title').textContent = 'WAVE 5/5 // BOSS: ' + sec.boss;
+          document.getElementById('wave-title').textContent = '第 5/5 波 // 頭目戰：' + sec.boss;
           state.waveQueue = [];
           spawnBoss();
         } else {
-          document.getElementById('wave-title').textContent = 'WAVE ' + (idx+1) + '/5 // ' + sec.mission;
+          document.getElementById('wave-title').textContent = '第 ' + (idx+1) + '/5 波 // ' + sec.mission;
           state.waveQueue = WAVE_TEMPLATES[idx].slice();
           state.spawnDelay = 0.4;
         }
@@ -1447,7 +1466,7 @@
         document.getElementById('end-overlay').classList.remove('open');
         document.getElementById('hub-overlay').classList.remove('open');
         const wo = document.getElementById('warp-overlay');
-        document.getElementById('warp-title').textContent = 'WARP SLIPSTREAM // ' + sec.code;
+        document.getElementById('warp-title').textContent = '超空間躍遷 // ' + sec.code;
         document.getElementById('warp-sub').textContent = sec.name + ' • ' + sec.mission;
         wo.classList.add('active');
         sfx.tone(95, 520, 0.65, 'sine', 0.09);
@@ -1471,7 +1490,7 @@
         }
         e.hp -= tot;
         if (isEmp) e.stunTimer = 3.5;
-        if (crit) showPop(e.mesh.position, 'CRIT ' + Math.round(dmg*st.dmgMult*1.65), '#ffb03a');
+        if (crit) showPop(e.mesh.position, '暴擊 ' + Math.round(dmg*st.dmgMult*1.65), '#ffb03a');
         state.ult = Math.min(100, state.ult + (e.hp <= 0 ? 10 : 1.4));
         if (e.hp <= 0) {
           spawnExplosion(e.mesh.position, e.type === 'DESTROYER' ? 1.85 : (e.type === 'ELITE' ? 1.5 : 1.0), e.type === 'ELITE' ? 0xff33aa : 0xff8c2b);
@@ -1499,14 +1518,14 @@
         }
         if (hitWP) {
           hitWP.hp -= applied * 1.45; boss.hp -= applied * 1.45;
-          showPop(hitPos, 'CORE CRIT ' + Math.round(applied*1.45), '#ff9c2b');
+          showPop(hitPos, '弱點暴擊 ' + Math.round(applied*1.45), '#ff9c2b');
           if (hitWP.hp <= 0) {
             hitWP.destroyed = true; hitWP.mesh.material.color.setHex(0x201818); hitWP.el.style.display = 'none';
             const wpPos = new THREE.Vector3(); hitWP.mesh.getWorldPosition(wpPos);
             spawnExplosion(wpPos, 2.5, boss.coreHex);
             boss.hp = Math.max(1, boss.hp - 240);
             state.shake = Math.min(1, state.shake + 0.65); state.score += 1200;
-            showBanner('REACTOR CORE DESTROYED!', 1800);
+            showBanner('反應爐弱點已摧毀！', 1800); vibrate([60, 25, 85]);
           }
         } else { boss.hp -= applied * 0.72; }
         state.ult = Math.min(100, state.ult + 1.2);
@@ -1514,12 +1533,12 @@
         const newPhase = ratio <= 0.30 ? 3 : (ratio <= 0.65 ? 2 : 1);
         if (newPhase > boss.phase) {
           boss.phase = newPhase;
-          showBanner(SECTORS[currentSectorIdx].boss + ' — PHASE ' + newPhase, 2200);
+          showBanner(SECTORS[currentSectorIdx].boss + ' — 進入第 ' + newPhase + ' 階段', 2200);
           spawnShockwave(boss.root.position.clone(), 44, boss.coreHex);
         }
         if (boss.hp <= 0 && !boss.dying) {
           boss.hp = 0; boss.dying = true; boss.deathTimer = 2.4; bossBeamMesh.visible = false;
-          showBanner('CAPITAL CORE MELTDOWN!', 2200);
+          showBanner('頭目主反應爐熔毀倒數！', 2200);
         }
         return true;
       }
@@ -1528,7 +1547,7 @@
         if (state.gameOver || state.victory) return;
         if (shieldActive && state.shield > 0) {
           state.shield = Math.max(0, state.shield - amount * 0.8);
-          shieldUniforms.uImpact.value = 1.0; sfx.tone(420, 210, 0.14, 'sine', 0.08); return;
+          shieldUniforms.uImpact.value = 1.0; sfx.tone(420, 210, 0.14, 'sine', 0.08); vibrate([16, 20, 16]); return;
         }
         if (state.shield > 0) {
           const abs = Math.min(state.shield, amount);
@@ -1538,13 +1557,13 @@
           state.hull = Math.max(0, state.hull - amount);
           state.shake = Math.min(1, state.shake + 0.4);
           damageFlash.style.opacity = '1'; setTimeout(function () { damageFlash.style.opacity = '0'; }, 140);
-          sfx.tone(140, 45, 0.22, 'sawtooth', 0.1);
+          sfx.tone(140, 45, 0.22, 'sawtooth', 0.1); vibrate([55, 25, 55]);
           if (state.hull <= 0) {
             state.gameOver = true;
             spawnExplosion(shipGroup.position, 2.0, 0xff3b4e);
-            document.getElementById('end-title').textContent = 'HULL INTEGRITY CRITICAL';
+            document.getElementById('end-title').textContent = '艦體結構毀損 — 任務失敗';
             document.getElementById('end-title').style.color = '#ff3b4e';
-            document.getElementById('end-stats').textContent = 'SCORE ' + state.score.toLocaleString() + ' // WALLET ' + saveData.credits + ' CR';
+            document.getElementById('end-stats').textContent = '總分 ' + state.score.toLocaleString() + ' • 持有信用點 ' + saveData.credits;
             document.getElementById('next-sector-btn').style.display = 'none';
             document.getElementById('end-overlay').classList.add('open');
           }
@@ -1592,7 +1611,7 @@
             g.position.set(shipGroup.position.x + xo, shipGroup.position.y - 0.18, shipGroup.position.z - 2.3);
             scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: false, trailColor: 0x3ef4ff, life: 1.2 });
           });
-          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 2.5), 0x3ef4ff, 6.5);
+          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 2.5), 0x3ef4ff, 6.5); vibrate(8);
           sfx.tone(680, 160, 0.1, 'triangle', 0.06);
         } else if (state.weapon === 'PLASMA') {
           const g = new THREE.Group();
@@ -1603,7 +1622,7 @@
           );
           g.position.set(shipGroup.position.x, shipGroup.position.y - 0.1, shipGroup.position.z - 3.2);
           scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 11, pierce: false, trailColor: 0xff8c2b, spin: true, life: 1.8 });
-          flashMuzzle(g.position, 0xff8c2b, 9.5);
+          flashMuzzle(g.position, 0xff8c2b, 9.5); vibrate([18, 12, 22]);
           sfx.tone(240, 68, 0.24, 'sawtooth', 0.08);
         } else if (state.weapon === 'RAILGUN') {
           const g = new THREE.Group();
@@ -1614,7 +1633,7 @@
           g.position.set(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 6.0);
           scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: true, trailColor: 0x82faff, life: 0.72 });
           spawnMachRings(shipGroup.position, 5, 0x7df9ff);
-          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 3.5), 0x82faff, 13.0);
+          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 3.5), 0x82faff, 13.0); vibrate([26, 14, 34]);
           state.shake = Math.min(1, state.shake + 0.36); sfx.tone(1100, 95, 0.24, 'sawtooth', 0.11);
         } else if (state.weapon === 'BURST') {
           [-2.4, -0.8, 0.8, 2.4].forEach(function (xo, idx) {
@@ -1647,13 +1666,13 @@
           scene.add(m);
           missiles.push({ mesh: m, lock: pool[i % Math.max(1, pool.length)] || null, vel: new THREE.Vector3((i-(count-1)/2)*14, 5, -70), life: 3.6 });
         }
-        sfx.tone(360, 920, 0.26, 'sawtooth', 0.08);
+        sfx.tone(360, 920, 0.26, 'sawtooth', 0.08); vibrate([20, 15, 25]);
       }
 
       function fireEMP() {
         if (state.gameOver || state.victory || state.paused || state.empCd > 0) return;
         state.empCd = 7.0 * getStats().cdMult;
-        spawnShockwave(shipGroup.position.clone(), 48, 0x3ef4ff); sfx.tone(920, 60, 0.5, 'sine', 0.11);
+        spawnShockwave(shipGroup.position.clone(), 48, 0x3ef4ff); vibrate([35, 20, 50]); sfx.tone(920, 60, 0.5, 'sine', 0.11);
         for (let i = enemies.length - 1; i >= 0; i--) {
           if (enemies[i].mesh.position.distanceTo(shipGroup.position) < 110) {
             if (damageEnemy(enemies[i], 42, 0.1, 3.0, true)) enemies.splice(i, 1);
@@ -1673,7 +1692,7 @@
       function fireUltimate() {
         if (state.gameOver || state.victory || state.paused || state.ult < 100) return;
         state.ult = 0; state.novaTimer = 1.7; state.shake = 0.9;
-        spawnShockwave(shipGroup.position.clone(), 56, 0x7ef9ff); sfx.tone(110, 440, 0.85, 'sawtooth', 0.14);
+        spawnShockwave(shipGroup.position.clone(), 56, 0x7ef9ff); vibrate([45, 20, 70, 20, 90]); sfx.tone(110, 440, 0.85, 'sawtooth', 0.14);
       }
 
       // Command Hub UI (Campaign / Hangar / Achievements)
@@ -1683,17 +1702,17 @@
       let activeHubTab = 'campaign';
 
       function renderHub() {
-        hubWallet.textContent = 'CREDITS: ' + saveData.credits.toLocaleString() + ' • PILOT LV ' + saveData.level + ' (XP ' + saveData.xp + '/' + (saveData.level*500) + ') • HIGH SCORE: ' + saveData.highScore.toLocaleString();
+        hubWallet.textContent = '信用點：' + saveData.credits.toLocaleString() + ' • 飛官等級 LV ' + saveData.level + '（經驗 ' + saveData.xp + '/' + (saveData.level*500) + '）• 最高分：' + saveData.highScore.toLocaleString();
         document.querySelectorAll('[data-hubtab]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-hubtab') === activeHubTab); });
         hubContent.innerHTML = '';
 
         if (activeHubTab === 'campaign') {
           const topAct = document.createElement('div');
-          topAct.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;';
-          topAct.innerHTML = '<span style="font-size:11px;color:var(--muted);">Select any unlocked Starfall Sector to deploy with current Hangar upgrades.</span>';
+          topAct.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap;';
+          topAct.innerHTML = '<span style="font-size:11px;color:var(--muted);">選擇已解鎖的星隕星域出擊，機庫強化數值將自動套用。</span>';
           const unlockBtn = document.createElement('button');
-          unlockBtn.className = 'hud-btn amber'; unlockBtn.textContent = 'SANDBOX: UNLOCK ALL 5 SECTORS';
-          unlockBtn.addEventListener('click', function () { saveData.unlockedSectors = 5; persistSave(); renderHub(); showToast('ALL 5 SECTORS UNLOCKED'); });
+          unlockBtn.className = 'hud-btn amber'; unlockBtn.textContent = '測試模式：解鎖全部五大星域';
+          unlockBtn.addEventListener('click', function () { saveData.unlockedSectors = 5; persistSave(); renderHub(); showToast('已解鎖全部五大星域'); vibrate(20); });
           topAct.appendChild(unlockBtn);
           hubContent.appendChild(topAct);
 
@@ -1703,14 +1722,14 @@
             const card = document.createElement('div');
             card.className = 'card-item' + (unlocked ? '' : ' locked') + (idx === currentSectorIdx ? ' active-sec' : '');
             card.innerHTML =
-              '<div><div class="card-title">' + sec.code + ': ' + sec.name + '</div>' +
-              '<div class="card-sub">Mission: ' + sec.mission + '<br>Boss: ' + sec.boss + '</div></div>' +
-              '<div class="card-meta">REWARD: +' + sec.cr + ' CR • +' + sec.xp + ' XP</div>';
+              '<div><div class="card-title">' + sec.code + '：' + sec.name + '</div>' +
+              '<div class="card-sub">任務類型：' + sec.mission + '<br>區域頭目：' + sec.boss + '</div></div>' +
+              '<div class="card-meta">通關獎勵：+' + sec.cr + ' 信用點 • +' + sec.xp + ' 經驗</div>';
             const btn = document.createElement('button');
             btn.className = unlocked ? 'hud-btn active' : 'hud-btn';
             btn.disabled = !unlocked;
-            btn.textContent = unlocked ? (idx === currentSectorIdx ? 'REDEPLOY SECTOR' : 'DEPLOY SECTOR') : 'LOCKED';
-            btn.addEventListener('click', function () { deploySector(idx); });
+            btn.textContent = unlocked ? (idx === currentSectorIdx ? '重新出擊此星域' : '出擊此星域') : '尚未解鎖';
+            btn.addEventListener('click', function () { vibrate(18); deploySector(idx); });
             card.appendChild(btn);
             grid.appendChild(card);
           });
@@ -1722,13 +1741,13 @@
             const cost = lvl >= 5 ? null : UPGRADE_COSTS[lvl];
             const card = document.createElement('div'); card.className = 'card-item';
             card.innerHTML =
-              '<div><div class="card-title">' + u.name + ' (LV ' + lvl + '/5)</div>' +
+              '<div><div class="card-title">' + u.name + '（LV ' + lvl + '/5）</div>' +
               '<div class="card-sub">' + u.desc + '</div></div>' +
-              '<div class="card-meta">' + (cost === null ? 'MAX LEVEL' : 'UPGRADE COST: ' + cost + ' CR') + '</div>';
+              '<div class="card-meta">' + (cost === null ? '已達最高等級' : '升級費用：' + cost + ' 信用點') + '</div>';
             const btn = document.createElement('button');
             btn.className = 'hud-btn active';
             btn.disabled = cost === null || saveData.credits < cost;
-            btn.textContent = cost === null ? 'MAXED' : 'UPGRADE (' + cost + ' CR)';
+            btn.textContent = cost === null ? '已滿級' : '升級（' + cost + ' 信用點）';
             btn.addEventListener('click', function () {
               if (cost !== null && saveData.credits >= cost) {
                 saveData.credits -= cost; saveData.upgrades[u.key] = lvl + 1;
@@ -1737,7 +1756,7 @@
                 state.maxShield = st.maxShield; state.shield = st.maxShield;
                 state.missileAmmo = st.maxMissiles;
                 checkProgression(0);
-                sfx.tone(440, 880, 0.18, 'sine', 0.08);
+                sfx.tone(440, 880, 0.18, 'sine', 0.08); vibrate([15, 15, 25]);
                 renderHub();
               }
             });
@@ -1745,14 +1764,47 @@
             grid.appendChild(card);
           });
           hubContent.appendChild(grid);
+        } else if (activeHubTab === 'settings') {
+          const grid = document.createElement('div'); grid.className = 'hub-grid';
+
+          // 畫質設定卡
+          const qCard = document.createElement('div'); qCard.className = 'card-item';
+          qCard.innerHTML = '<div><div class="card-title">畫面效能等級</div><div class="card-sub">目前：' + (currentTier === 'HIGH' ? '高畫質' : (currentTier === 'BALANCED' ? '平衡模式' : '流暢效能')) + '</div></div>';
+          const qRow = document.createElement('div'); qRow.style.cssText = 'display:flex;gap:6px;';
+          [['HIGH','高畫質'],['BALANCED','平衡'],['PERFORMANCE','效能']].forEach(function (pair) {
+            const b = document.createElement('button');
+            b.className = 'hud-btn' + (currentTier === pair[0] ? ' active' : '');
+            b.textContent = pair[1];
+            b.addEventListener('click', function () { applyTier(pair[0]); vibrate(12); renderHub(); });
+            qRow.appendChild(b);
+          });
+          qCard.appendChild(qRow); grid.appendChild(qCard);
+
+          // 攝影機視角卡
+          const cCard = document.createElement('div'); cCard.className = 'card-item';
+          const camLabels = { COMBAT: '戰鬥跟隨', WIDE: '廣角電影', ORBIT: '環繞展示' };
+          cCard.innerHTML = '<div><div class="card-title">攝影機視角</div><div class="card-sub">目前：' + camLabels[camModes[camIdx]] + '（快速鍵 C）</div></div>';
+          const cBtn = document.createElement('button'); cBtn.className = 'hud-btn active'; cBtn.textContent = '切換視角';
+          cBtn.addEventListener('click', function () { cycleCam(); vibrate(12); renderHub(); });
+          cCard.appendChild(cBtn); grid.appendChild(cCard);
+
+          // 手機震動回饋卡
+          const hCard = document.createElement('div'); hCard.className = 'card-item';
+          hCard.innerHTML = '<div><div class="card-title">手機震動回饋</div><div class="card-sub">開火後座力、護盾受擊、爆炸與碰撞觸覺震動</div></div>';
+          const hBtn = document.createElement('button'); hBtn.className = 'hud-btn ' + (hapticsEnabled ? 'active' : 'amber');
+          hBtn.textContent = hapticsEnabled ? '震動回饋：開啟' : '震動回饋：關閉';
+          hBtn.addEventListener('click', function () { hapticsEnabled = !hapticsEnabled; if (hapticsEnabled) vibrate([25, 20, 35]); renderHub(); });
+          hCard.appendChild(hBtn); grid.appendChild(hCard);
+
+          hubContent.appendChild(grid);
         } else {
           const statsDiv = document.createElement('div');
           statsDiv.style.cssText = 'font-size:11px;color:var(--text);margin-bottom:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;';
-          statsDiv.innerHTML = '<span>TOTAL KILLS: <b>' + saveData.totalKills + '</b> • BOSSES DEFEATED: <b>' + saveData.bossesDefeated + '</b> • UNLOCKED SECTORS: <b>' + saveData.unlockedSectors + '/5</b></span>';
+          statsDiv.innerHTML = '<span>總擊毀數：<b>' + saveData.totalKills + '</b> • 擊毀頭目艦：<b>' + saveData.bossesDefeated + '</b> • 已解鎖星域：<b>' + saveData.unlockedSectors + '/5</b></span>';
           const resetBtn = document.createElement('button');
-          resetBtn.className = 'hud-btn crimson'; resetBtn.textContent = 'RESET SAVE DATA';
+          resetBtn.className = 'hud-btn crimson'; resetBtn.textContent = '清除本機存檔';
           resetBtn.addEventListener('click', function () {
-            saveData = JSON.parse(JSON.stringify(DEFAULT_SAVE)); persistSave(); renderHub(); showToast('SAVE DATA RESET');
+            saveData = JSON.parse(JSON.stringify(DEFAULT_SAVE)); persistSave(); renderHub(); showToast('已重設存檔紀錄');
           });
           statsDiv.appendChild(resetBtn);
           hubContent.appendChild(statsDiv);
@@ -1763,7 +1815,7 @@
             const card = document.createElement('div'); card.className = 'card-item' + (done ? ' active-sec' : '');
             card.innerHTML =
               '<div class="card-title">' + a.title + '</div>' +
-              '<div class="card-meta">' + (done ? 'UNLOCKED (+' + a.cr + ' CR AWARDED)' : 'REWARD: +' + a.cr + ' CR') + '</div>';
+              '<div class="card-meta">' + (done ? '已達成（已領取 +' + a.cr + ' 信用點）' : '獎勵：+' + a.cr + ' 信用點') + '</div>';
             grid.appendChild(card);
           });
           hubContent.appendChild(grid);
@@ -1818,16 +1870,14 @@
       document.getElementById('next-sector-btn').addEventListener('click', function () { deploySector(Math.min(SECTORS.length - 1, currentSectorIdx + 1)); });
       document.getElementById('end-hangar-btn').addEventListener('click', function () { document.getElementById('end-overlay').classList.remove('open'); openHub('hangar'); });
 
-      const camBtn = document.getElementById('cam-btn');
-      function cycleCam() { camIdx = (camIdx + 1) % camModes.length; camBtn.textContent = 'CAM: ' + camModes[camIdx]; }
-      camBtn.addEventListener('click', cycleCam);
+      function cycleCam() { camIdx = (camIdx + 1) % camModes.length; }
 
       const orientBar = document.getElementById('orient-bar');
       document.getElementById('dismiss-orient').addEventListener('click', function () { orientBar.classList.remove('show'); });
       const boostVignette = document.getElementById('boost-vignette');
       const audioBtn = document.getElementById('audio-btn');
       audioBtn.addEventListener('click', function () {
-        const on = sfx.toggle(); audioBtn.textContent = on ? 'AUDIO: ON' : 'AUDIO: OFF'; audioBtn.classList.toggle('active', on);
+        const on = sfx.toggle(); audioBtn.textContent = on ? '音效開' : '靜音'; audioBtn.classList.toggle('active', on);
       });
 
       window.addEventListener('keydown', function (e) {
@@ -1864,7 +1914,7 @@
 
       function bindHold(id, setter) {
         const el = document.getElementById(id);
-        el.addEventListener('pointerdown', function () { setter(true); el.classList.add('engaged'); });
+        el.addEventListener('pointerdown', function () { setter(true); el.classList.add('engaged'); vibrate(12); });
         el.addEventListener('pointerup', function () { setter(false); el.classList.remove('engaged'); });
         el.addEventListener('pointerleave', function () { setter(false); el.classList.remove('engaged'); });
       }
@@ -2047,9 +2097,9 @@
               if (state.score > saveData.highScore) saveData.highScore = state.score;
               checkProgression(sec.xp);
               clearBossUI(); state.victory = true;
-              document.getElementById('end-title').textContent = sec.code + ' CLEARED — ' + sec.boss + ' DESTROYED';
+              document.getElementById('end-title').textContent = sec.code + ' 肅清完成 — 已擊毀 ' + sec.boss;
               document.getElementById('end-title').style.color = '#2ce8ff';
-              document.getElementById('end-stats').textContent = 'SCORE ' + state.score.toLocaleString() + ' // +' + sec.cr + ' CR // +' + sec.xp + ' XP';
+              document.getElementById('end-stats').textContent = '總分 ' + state.score.toLocaleString() + ' • +' + sec.cr + ' 信用點 • +' + sec.xp + ' 經驗';
               document.getElementById('next-sector-btn').style.display = currentSectorIdx < 4 ? 'inline-block' : 'none';
               document.getElementById('end-overlay').classList.add('open');
             }
@@ -2081,7 +2131,7 @@
                 boss.beamTimer -= dt;
                 if (boss.beamState === 'IDLE' && boss.beamTimer <= 0) {
                   boss.beamState = 'CHARGING'; boss.beamTimer = 1.6;
-                  showBanner('INCOMING SPINAL BEAM — EVADE!', 1500); sfx.tone(120, 620, 1.4, 'sawtooth', 0.1);
+                  showBanner('警告！主砲能量光束充能中 — 立即閃避！', 1500); sfx.tone(120, 620, 1.4, 'sawtooth', 0.1);
                 } else if (boss.beamState === 'CHARGING') {
                   boss.emitter.scale.setScalar(1 + Math.sin(now * 0.04)*0.35);
                   if (boss.beamTimer <= 0) { boss.beamState = 'FIRING'; boss.beamTimer = 1.45; boss.emitter.scale.setScalar(1); state.shake = Math.min(1, state.shake + 0.45); }
@@ -2107,7 +2157,7 @@
               } else { w.el.style.display = 'none'; }
             });
             bossFill.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + '%';
-            bossSub.textContent = 'PHASE ' + boss.phase + '/3 • ' + aliveCores + ' REACTOR CORES ONLINE';
+            bossSub.textContent = '階段 ' + boss.phase + '/3 • 剩餘 ' + aliveCores + ' 座反應爐核心';
           }
         }
 
@@ -2184,7 +2234,7 @@
             saveData.credits += pk.cr; checkProgression(pk.xp);
             state.hull = Math.min(state.maxHull, state.hull + 5);
             if (state.missileAmmo < st.maxMissiles) state.missileAmmo++;
-            showPop(shipGroup.position, '+' + pk.cr + ' CR', '#4effa8'); sfx.tone(580, 960, 0.12, 'sine', 0.06);
+            showPop(shipGroup.position, '+' + pk.cr + ' 信用點', '#4effa8'); vibrate(14); sfx.tone(580, 960, 0.12, 'sine', 0.06);
             scene.remove(pk.mesh); pickups.splice(i, 1); continue;
           }
           if (pk.life <= 0 || pk.mesh.position.z > 20) { scene.remove(pk.mesh); pickups.splice(i, 1); }
@@ -2265,7 +2315,7 @@
               if (c.warnCd <= 0) {
                 c.warnCd = 0.65;
                 damagePlayer(18);
-                showBanner('PROXIMITY ALERT // EVADE CAPITAL CARRIER!', 1400);
+                showBanner('近距碰撞警告！請閃避大型母艦艦體！', 1400);
                 // Gentle push-out deflection so player never gets trapped inside hull
                 shipGroup.position.x += (shipGroup.position.x >= c.group.position.x ? 3.5 : -3.5);
               }
@@ -2303,10 +2353,10 @@
         heatFill.style.width = state.heat.toFixed(0)+'%'; heatVal.textContent = Math.round(state.heat)+'%';
         boostFill.style.width = state.boost.toFixed(0)+'%'; boostVal.textContent = Math.round(state.boost)+'%';
         scoreVal.textContent = String(state.score).padStart(6, '0');
-        rewardRow.textContent = 'CREDITS ' + saveData.credits.toLocaleString() + ' • XP ' + saveData.xp + ' • COMBO x' + state.combo.toFixed(1);
+        rewardRow.textContent = '信用點 ' + saveData.credits.toLocaleString() + ' • 連擊 x' + state.combo.toFixed(1);
         missileCnt.textContent = String(state.missileAmmo);
-        btnEmp.disabled = state.empCd > 0; btnEmp.textContent = state.empCd > 0 ? 'F EMP ' + Math.ceil(state.empCd) + 's' : 'F EMP';
-        btnBomb.disabled = state.bombCd > 0; btnBomb.textContent = state.bombCd > 0 ? 'R BOMB ' + Math.ceil(state.bombCd) + 's' : 'R E-BOMB';
+        btnEmp.disabled = state.empCd > 0; btnEmp.textContent = state.empCd > 0 ? '電磁 ' + Math.ceil(state.empCd) + 's' : '電磁';
+        btnBomb.disabled = state.bombCd > 0; btnBomb.textContent = state.bombCd > 0 ? '重力 ' + Math.ceil(state.bombCd) + 's' : '重力';
         ultPct.textContent = Math.floor(state.ult) + '%';
         btnUlt.classList.toggle('ready', state.ult >= 100); btnUlt.disabled = state.ult < 100;
 
