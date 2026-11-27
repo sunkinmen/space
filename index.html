@@ -1403,6 +1403,7 @@
       // 手機震動回饋系統 (Vibration API)
       // 玩家設定（獨立存檔，觸控裝置預設開啟自動開火＋輔助瞄準）
       const IS_TOUCH = (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+      const IS_APPLE = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
       const DEBUG_MODE = /[?&]debug=1/.test(location.search);
       const SETTINGS_KEY = 'project_starfall_settings_v2';
       const settings = (function () {
@@ -1464,9 +1465,9 @@
       }
 
       const TIERS = {
-        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.12, bloom: 0.6,  msaa: 4, planetHQ: true,  nebRes: 1024, fogDensity: 0.0019, haze: 8, dockSegs: 7, grade: true },
-        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.1,  bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768,  fogDensity: 0.0019, haze: 6,  dockSegs: 6, grade: true },
-        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.05, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512,  fogDensity: 0.0021, haze: 3,  dockSegs: 5, grade: false }
+        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.12, bloom: 0.6,  msaa: 4, planetHQ: true,  nebRes: 1024, fogDensity: 0.0015, haze: 6, dockSegs: 7, grade: true },
+        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.1,  bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768,  fogDensity: 0.0015, haze: 5,  dockSegs: 6, grade: true },
+        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.05, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512,  fogDensity: 0.0016, haze: 3,  dockSegs: 5, grade: false }
       };
 
       const WEAPONS = {
@@ -2126,7 +2127,7 @@
 
       // 船塢材質：用世界座標做三平面 UV，Instanced 方塊大小不同也不會拉伸貼圖，並帶出舷窗燈點
       function dockMaterial() {
-        const m = new THREE.MeshStandardMaterial({ color: 0x8a9099, map: hullTex.maps[3], bumpMap: hullTex.bumpMap, bumpScale: 0.5, roughness: 0.7, metalness: 0.4, envMapIntensity: 0.5, emissive: 0xffffff, emissiveMap: hullTex.emissiveMap, emissiveIntensity: 1.4 });
+        const m = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, map: hullTex.maps[3], roughness: 0.75, metalness: 0.35, envMapIntensity: 0.45 });
         m.onBeforeCompile = function (sh) {
           sh.vertexShader = sh.vertexShader.replace('#include <uv_vertex>', [
             '#include <uv_vertex>',
@@ -2137,7 +2138,7 @@
             '#endif',
             '  vec3 tpN = abs(normal);',
             '  vec2 tpUv = tpN.y > 0.5 ? tpW.xz : (tpN.x > 0.5 ? tpW.zy : tpW.xy);',
-            '  vUv = tpUv / vec2(24.0, 12.0);'
+            '  vUv = tpUv / vec2(64.0, 32.0);'
           ].join('\n'));
         };
         m.customProgramCacheKey = function () { return 'dock-triplanar'; };
@@ -2337,23 +2338,19 @@
       // 後處理：Bloom 泛光 + 電影調色（冷色暗部 / 暖色亮部 / 去飽和 / 暗角 / 底片顆粒 / 邊緣色散）
       let composer = null, bloomPass = null, gradePass = null, bloomActive = false, bloomSuppressed = false;
       const GRADE_SHADER = {
-        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uSat: { value: 0.78 }, uContrast: { value: 1.1 }, uLift: { value: new THREE.Vector3(0.006, 0.016, 0.024) }, uGain: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uVignette: { value: 0.42 }, uGrain: { value: 0.012 }, uCA: { value: 1.0 } },
+        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uSat: { value: 0.78 }, uContrast: { value: 1.06 }, uLift: { value: new THREE.Vector3(0.006, 0.016, 0.024) }, uGain: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uVignette: { value: 0.35 }, uGrain: { value: 0.012 }, uCA: { value: 1.0 } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: [
           'uniform sampler2D tDiffuse; uniform float uTime, uSat, uContrast, uVignette, uGrain, uCA; uniform vec3 uLift, uGain; varying vec2 vUv;',
           'void main(){',
           '  vec2 d = vUv - 0.5; float r2 = dot(d, d);',
-          '  vec2 off = d * r2 * 0.012 * uCA;',
-          '  vec3 c = vec3(texture2D(tDiffuse, vUv - off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv + off).b);',
+          '  vec3 c = texture2D(tDiffuse, vUv).rgb;',
           '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
           '  c = mix(vec3(l), c, uSat);',
           '  c = (c - 0.5) * uContrast + 0.5;',
           '  c += uLift * (1.0 - smoothstep(0.0, 0.55, l));',
           '  c = mix(c, c * uGain, smoothstep(0.35, 1.0, l));',
           '  c *= 1.0 - uVignette * smoothstep(0.08, 0.6, r2 * 1.6);',
-          '  vec3 p3 = fract(vec3(gl_FragCoord.xyx + floor(uTime * 24.0) * 17.0) * 0.1031); p3 += dot(p3, p3.yzx + 33.33);',
-          '  float n = fract((p3.x + p3.y) * p3.z) - 0.5;',
-          '  c += n * uGrain;',
           '  gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);',
           '}'
         ].join('\n')
@@ -2372,13 +2369,13 @@
           const pr = renderer.getPixelRatio(), w = window.innerWidth, h = window.innerHeight;
           const params = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat };
           let rt;
-          if (renderer.capabilities.isWebGL2 && cfg.msaa && THREE.WebGLMultisampleRenderTarget) {
+          if (renderer.capabilities.isWebGL2 && cfg.msaa && !IS_APPLE && THREE.WebGLMultisampleRenderTarget) {
             rt = new THREE.WebGLMultisampleRenderTarget(Math.round(w * pr), Math.round(h * pr), params); rt.samples = cfg.msaa;
           }
           composer = new THREE.EffectComposer(renderer, rt);
           composer._pixelRatio = pr; composer.setSize(w, h);
           composer.addPass(new THREE.RenderPass(scene, camera));
-          if (wantBloom) { bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), cfg.bloom, 0.5, 0.86); composer.addPass(bloomPass); bloomActive = true; }
+          if (wantBloom) { bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), cfg.bloom, 0.45, 0.93); composer.addPass(bloomPass); bloomActive = true; }
           if (wantGrade) { gradePass = new THREE.ShaderPass(GRADE_SHADER); composer.addPass(gradePass); }
         } catch (e) { console.warn('PostFX disabled', e); disposeComposer(); }
       }
@@ -2589,16 +2586,17 @@
         scene.background = new THREE.Color(lk.bg);
 
         // Layer 1: Starfield
-        const sGeo = new THREE.BufferGeometry(), sPos = new Float32Array(cfg.stars*3), sCol = new Float32Array(cfg.stars*3);
-        const pal = [new THREE.Color(0xffffff), new THREE.Color(0x9fd7ff), new THREE.Color(0xffd7b0), new THREE.Color(0xd29cff)];
-        for (let i = 0; i < cfg.stars; i++) {
+        const sGeo = new THREE.BufferGeometry(), sPos = new Float32Array(Math.round(cfg.stars * 0.5)*3), sCol = new Float32Array(Math.round(cfg.stars * 0.5)*3);
+        const pal = [new THREE.Color(0xb8bec8), new THREE.Color(0x98a8bc), new THREE.Color(0xc4bcb0), new THREE.Color(0x8c96a6)];
+        const starN = Math.round(cfg.stars * 0.5);
+        for (let i = 0; i < starN; i++) {
           const r = 680 + Math.random()*1400, t = Math.random()*6.283, p = Math.acos(2*Math.random()-1);
           sPos[i*3]=r*Math.sin(p)*Math.cos(t); sPos[i*3+1]=r*Math.sin(p)*Math.sin(t); sPos[i*3+2]=r*Math.cos(p);
           const c = pal[i%4]; sCol[i*3]=c.r; sCol[i*3+1]=c.g; sCol[i*3+2]=c.b;
         }
         sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
         sGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
-        envGroup.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ size: 2.3, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, fog: false })));
+        envGroup.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ size: 1.6, vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, fog: false })));
 
         // Layer 2: NASA/JWST Cosmic Cliffs Multi-Layer Deep Nebula + Luminous Ionization Ridges
         const goldColors = [0xffb454, 0xff7b9c, 0x64f0ff, 0xffcb78];
@@ -2747,7 +2745,7 @@
         hazeSprites = [];
         for (let i = 0; i < cfg.haze; i++) {
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: hazeTex(), color: look.haze, transparent: true, opacity: 0.25, depthWrite: false, fog: false }));
-          const h = { sp: sp, base: 0.1 + Math.random() * 0.1, s: 200 + Math.random() * 220 };
+          const h = { sp: sp, base: 0.05 + Math.random() * 0.06, s: 220 + Math.random() * 220 };
           placeHaze(h, -60 - Math.random() * 340);
           sp.material.rotation = Math.random() * 6.28;
           envGroup.add(sp); hazeSprites.push(h);
