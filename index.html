@@ -666,7 +666,7 @@
 				uniforms: this.copyUniforms,
 				vertexShader: copyShader.vertexShader,
 				fragmentShader: copyShader.fragmentShader,
-				blending: THREE.AdditiveBlending,
+				blending: THREE.AdditiveBlending, fog: false,
 				depthTest: false,
 				depthWrite: false,
 				transparent: true
@@ -1406,7 +1406,7 @@
       const DEBUG_MODE = /[?&]debug=1/.test(location.search);
       const SETTINGS_KEY = 'project_starfall_settings_v2';
       const settings = (function () {
-        const d = { haptics: true, autoFire: IS_TOUCH, aimAssist: true, voice: true, bloom: true, autoQuality: true };
+        const d = { haptics: true, autoFire: IS_TOUCH, aimAssist: true, voice: true, bloom: true, cinematic: true, autoQuality: true };
         try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { return d; }
       })();
       function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
@@ -1426,8 +1426,8 @@
       }
 
       const SECTORS = [
-        { id: 1, code: '第一星域', name: '星雲邊境',     mission: '艦隊殲滅戰', nebA: 0x4a2b7a, nebB: 0x1b4d89, key: 0xd4ecff, rim: 0xdbeeff, landmark: 'PLANET',    boss: '星界利維坦',     bossHp: 2400, cr: 1800, xp: 900,  diff: 1.0 },
-        { id: 2, code: '第二星域', name: '破碎小行星帶', mission: '攔截突襲戰', nebA: 0x6e431f, nebB: 0x2a333d, key: 0xffd7a6, rim: 0xff8c2b, landmark: 'BELT',      boss: '克拉格-09 碎礦巨艦', bossHp: 3000, cr: 2400, xp: 1200, diff: 1.2 },
+        { id: 1, code: '第一星域', name: '星雲邊境',     mission: '艦隊殲滅戰', nebA: 0x2a3352, nebB: 0x1c3d5e, key: 0xd4ecff, rim: 0xdbeeff, landmark: 'PLANET',    boss: '星界利維坦',     bossHp: 2400, cr: 1800, xp: 900,  diff: 1.0 },
+        { id: 2, code: '第二星域', name: '破碎小行星帶', mission: '攔截突襲戰', nebA: 0x4f3a26, nebB: 0x2a3138, key: 0xffd7a6, rim: 0xff8c2b, landmark: 'BELT',      boss: '克拉格-09 碎礦巨艦', bossHp: 3000, cr: 2400, xp: 1200, diff: 1.2 },
         { id: 3, code: '第三星域', name: '黑日星系',     mission: '高危生存戰', nebA: 0x2e120a, nebB: 0x8f340e, key: 0xffcc70, rim: 0xff5a1f, landmark: 'BLACKSUN',  boss: '赫利俄斯奇點母艦', bossHp: 3700, cr: 3200, xp: 1600, diff: 1.4 },
         { id: 4, code: '第四星域', name: '遺忘艦隊墳場', mission: '星域防衛戰', nebA: 0x18303b, nebB: 0x2c4b52, key: 0xbfe8f2, rim: 0x49c2d6, landmark: 'DERELICT',  boss: '主權亡魂超級航母', bossHp: 4400, cr: 4000, xp: 2100, diff: 1.6 },
         { id: 5, code: '第五星域', name: '泰坦之門',     mission: '終極頭目戰', nebA: 0x12383a, nebB: 0x6e5420, key: 0xe6fff9, rim: 0x2ef2e0, landmark: 'TITANGATE', boss: '執政官守門者',   bossHp: 5400, cr: 6000, xp: 3500, diff: 1.85 }
@@ -1464,9 +1464,9 @@
       }
 
       const TIERS = {
-        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.28, bloom: 0.6, msaa: 4, planetHQ: true,  nebRes: 1024 },
-        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.18, bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768 },
-        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.08, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512 }
+        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.12, bloom: 0.6,  msaa: 4, planetHQ: true,  nebRes: 1024, fogDensity: 0.0019, haze: 14, dockSegs: 7, grade: true },
+        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.1,  bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768,  fogDensity: 0.0019, haze: 9,  dockSegs: 6, grade: true },
+        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.05, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512,  fogDensity: 0.0021, haze: 4,  dockSegs: 5, grade: false }
       };
 
       const WEAPONS = {
@@ -1954,207 +1954,351 @@
       }
 
       // Weathered Capital Carrier 1024x512 PBR Texture (Rust Patches, Oil Streaks, Hazard Stripes, Hull Serial & Legion Logo)
-      function createCarrierHullPBR(hullSerial, legionStyle, baseHex, trimHex, accentHex) {
-        const W = 1024, H = 512;
-        const cA = document.createElement('canvas'); cA.width = W; cA.height = H;
-        const cB = document.createElement('canvas'); cB.width = W; cB.height = H;
-        const cR = document.createElement('canvas'); cR.width = W; cR.height = H;
-        const cE = document.createElement('canvas'); cE.width = W; cE.height = H;
-        const a = cA.getContext('2d'), b = cB.getContext('2d'), r = cR.getContext('2d'), e = cE.getContext('2d');
+      // ===== v3 寫實風格：白灰塗裝舊化艦體貼圖（共用版面，多種配色） =====
+      function makeRng(seed) { let a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+      const HULL_PALETTES = [
+        { base: [150, 155, 160], var: 18, accent: '#9c2a22', stripe: '#c9a33a', lower: null },          // 0 灰白艦隊塗裝
+        { base: [128, 135, 142], var: 16, accent: '#c4561e', stripe: '#d0a23c', lower: null },          // 1 冷灰藍
+        { base: [156, 158, 158], var: 16, accent: '#8e2a1e', stripe: '#c9a33a', lower: [118, 58, 44] },  // 2 白上身 + 鏽紅下艙
+        { base: [52, 58, 66], var: 12, accent: '#2a5f74', stripe: '#6b6448', lower: null }               // 3 太空站深色鋼構
+      ];
+      const hullTex = (function buildHullTextures() {
+        const W = 1024, H = 512, rng = makeRng(20261127);
+        const panels = [];
+        (function split(x, y, w, h, d) {
+          if (d > 4 || (w < 60 && h < 40) || (d > 1 && rng() < 0.16)) { panels.push({ x: x, y: y, w: w, h: h }); return; }
+          const vert = w > h * 1.3 ? true : (h > w * 1.3 ? false : rng() < 0.5);
+          if (vert) { const s = Math.round(w * (0.3 + rng() * 0.4)); split(x, y, s, h, d + 1); split(x + s, y, w - s, h, d + 1); }
+          else { const s = Math.round(h * (0.3 + rng() * 0.4)); split(x, y, w, s, d + 1); split(x, y + s, w, h - s, d + 1); }
+        })(0, 0, W, H, -2);
+        panels.forEach(function (p) { p.tone = rng(); p.kind = rng(); p.r2 = rng(); p.r3 = rng(); });
+        const grime = []; for (let i = 0; i < 150; i++) grime.push({ x: rng() * W, y: rng() * H, r: 10 + rng() * 60, a: 0.08 + rng() * 0.2, streak: rng() < 0.5, len: 20 + rng() * 120 });
 
-        a.fillStyle = baseHex; a.fillRect(0, 0, W, H);
-        b.fillStyle = '#808080'; b.fillRect(0, 0, W, H);
-        r.fillStyle = '#686868'; r.fillRect(0, 0, W, H);
-        e.fillStyle = '#000000'; e.fillRect(0, 0, W, H);
-
-        // Armor plating grid + recessed seams + rivets
-        for (let gx = 0; gx < 16; gx++) {
-          for (let gy = 0; gy < 8; gy++) {
-            const x = gx * 64, y = gy * 64;
-            const shade = ((gx * 13 + gy * 7) % 3 === 0) ? trimHex : baseHex;
-            a.fillStyle = shade; a.fillRect(x + 2, y + 2, 60, 60);
-            a.strokeStyle = 'rgba(0,0,0,0.72)'; a.lineWidth = 2.5; a.strokeRect(x + 2, y + 2, 60, 60);
-            a.strokeStyle = 'rgba(215,230,245,0.12)'; a.lineWidth = 1; a.strokeRect(x + 4, y + 4, 56, 56);
-            b.fillStyle = ((gx + gy) % 2 === 0) ? '#b8b8b8' : '#646464'; b.fillRect(x + 3, y + 3, 58, 58);
-            b.strokeStyle = '#121212'; b.lineWidth = 3; b.strokeRect(x + 2, y + 2, 60, 60);
-            r.fillStyle = ((gx + gy) % 2 === 0) ? '#444444' : '#8e8e8e'; r.fillRect(x + 3, y + 3, 58, 58);
-          }
-        }
-
-        // Heavy Rust Patches, Oxidized Streaks & Battle Scorch Marks
-        for (let i = 0; i < 65; i++) {
-          const rx = (i * 157) % W, ry = (i * 97) % H;
-          const rad = 18 + (i % 5) * 14;
-          const rg = a.createRadialGradient(rx, ry, 2, rx, ry, rad);
-          rg.addColorStop(0, i % 3 === 0 ? 'rgba(138, 62, 26, 0.72)' : 'rgba(92, 42, 20, 0.58)');
-          rg.addColorStop(0.6, 'rgba(68, 34, 18, 0.28)');
-          rg.addColorStop(1, 'rgba(0,0,0,0)');
-          a.fillStyle = rg; a.fillRect(rx - rad, ry - rad, rad * 2, rad * 2);
-          r.fillStyle = 'rgba(220,220,220,0.55)'; r.fillRect(rx - rad * 0.5, ry - rad * 0.5, rad, rad);
-
-          // Oil / rust drip streak
-          a.fillStyle = 'rgba(42, 22, 12, 0.42)';
-          a.fillRect(rx, ry, 3 + (i % 4), 28 + (i % 48));
-        }
-
-        // Diagonal Yellow-Black Industrial Hazard Deck Stripe
-        a.save();
-        a.beginPath(); a.rect(0, 396, W, 28); a.clip();
-        a.fillStyle = '#6e5c3e'; a.fillRect(0, 396, W, 22);
-        a.fillStyle = '#191a1d';
-        for (let hx = -32; hx < W + 64; hx += 34) {
-          a.beginPath(); a.moveTo(hx, 396); a.lineTo(hx + 16, 396); a.lineTo(hx + 2, 424); a.lineTo(hx - 14, 424); a.closePath(); a.fill();
-        }
-        a.restore();
-
-        // Painted Military Stencil Hull Model Serial (e.g. CVN-07, UNF-42)
-        a.save();
-        a.font = '900 92px Impact, Arial Black, sans-serif';
-        a.fillStyle = 'rgba(225, 232, 238, 0.78)';
-        a.fillText(hullSerial, 72, 195);
-        a.font = '700 22px monospace';
-        a.fillStyle = 'rgba(225, 190, 120, 0.72)';
-        a.fillText('HEAVY FLEET CARRIER // SECTOR COMMAND', 76, 232);
-        // Subtle paint wear scratches over the stencil
-        a.fillStyle = baseHex;
-        for (let k = 0; k < 22; k++) {
-          a.fillRect(72 + (k * 37) % 340, 118 + (k * 19) % 85, 8 + (k % 12), 2.5);
-        }
-        a.restore();
-
-        // Original Geometric Fleet Legion Emblem / Logo
-        a.save();
-        a.translate(770, 178);
-        a.strokeStyle = accentHex; a.fillStyle = accentHex; a.lineWidth = 8;
-        if (legionStyle === 0) {
-          // Vanguard Star-Chevron Crest
-          a.beginPath(); a.arc(0, 0, 74, 0, Math.PI * 2); a.stroke();
-          a.beginPath(); a.moveTo(0, -56); a.lineTo(44, 32); a.lineTo(0, 10); a.lineTo(-44, 32); a.closePath(); a.fill();
-          a.fillStyle = 'rgba(235,245,255,0.85)';
-          a.beginPath(); a.arc(0, -14, 12, 0, Math.PI * 2); a.fill();
-        } else if (legionStyle === 1) {
-          // Iron Bastion Hex-Shield Insignia
-          a.beginPath();
-          for (let s = 0; s < 6; s++) {
-            const ang = (s * Math.PI) / 3 - Math.PI / 6;
-            const px = Math.cos(ang) * 74, py = Math.sin(ang) * 74;
-            if (s === 0) a.moveTo(px, py); else a.lineTo(px, py);
-          }
-          a.closePath(); a.stroke();
-          a.fillRect(-42, -16, 84, 14); a.fillRect(-26, 8, 52, 14); a.fillRect(-10, 30, 20, 14);
-        } else {
-          // Syndicate Twin-Fang Wing Emblem
-          a.beginPath(); a.moveTo(-68, -42); a.lineTo(0, 62); a.lineTo(68, -42); a.lineTo(30, -42); a.lineTo(0, 12); a.lineTo(-30, -42); a.closePath(); a.fill();
-          a.strokeRect(-76, -54, 152, 124);
-        }
-        a.restore();
-
-        // Illuminated Micro Deck Windows & Hangar Bay Strips
-        for (let wy = 276; wy < 366; wy += 16) {
-          for (let wx = 44; wx < W - 44; wx += 14) {
-            if ((wx * 3 + wy * 7) % 5 === 0) {
-              e.fillStyle = (wx % 28 === 0) ? '#7cf2ff' : '#ffc266';
-              e.fillRect(wx, wy, 5, 3);
+        function canvas() { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; }
+        // 共用凹凸圖：面板縫、百葉通風口、鉚釘
+        const cB = canvas(), b = cB.getContext('2d');
+        b.fillStyle = '#8a8a8a'; b.fillRect(0, 0, W, H);
+        // 共用自發光圖：舷窗燈列
+        const cE = canvas(), e = cE.getContext('2d');
+        e.fillStyle = '#000'; e.fillRect(0, 0, W, H);
+        panels.forEach(function (p) {
+          const g = 128 + Math.round((p.tone - 0.5) * 40);
+          b.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')'; b.fillRect(p.x + 2, p.y + 2, p.w - 4, p.h - 4);
+          b.strokeStyle = '#151515'; b.lineWidth = 2.5; b.strokeRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
+          if (p.kind < 0.09) { b.fillStyle = '#202020'; b.fillRect(p.x + 6, p.y + 6, p.w - 12, p.h - 12); b.fillStyle = '#9a9a9a'; for (let yy = p.y + 9; yy < p.y + p.h - 8; yy += 5) b.fillRect(p.x + 8, yy, p.w - 16, 2); }
+          if (p.kind > 0.09 && p.kind < 0.2) {
+            for (let yy = p.y + 8; yy < p.y + p.h - 6; yy += 9) for (let xx = p.x + 8; xx < p.x + p.w - 8; xx += 8) {
+              if (rng() < 0.62) { e.fillStyle = rng() < 0.86 ? '#9fe9ff' : '#ffb35c'; e.fillRect(xx, yy, 4, 3); }
             }
           }
-        }
-        e.fillStyle = '#4ef2ff'; e.fillRect(460, 442, 220, 16);
+          if (p.w > 40 && p.h > 30) { b.fillStyle = '#4a4a4a'; [[6, 6], [p.w - 9, 6], [6, p.h - 9], [p.w - 9, p.h - 9]].forEach(function (q) { b.fillRect(p.x + q[0], p.y + q[1], 3, 3); }); }
+        });
+        function tex(cv) { const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; }
+        const bumpMap = tex(cB), emissiveMap = tex(cE);
 
-        function toTex(cv) {
-          const t = new THREE.CanvasTexture(cv);
-          t.wrapS = t.wrapT = THREE.RepeatWrapping;
-          return t;
+        const maps = HULL_PALETTES.map(function (pal, vi) {
+          const r2 = makeRng(99 + vi * 7);
+          const cA = canvas(), a = cA.getContext('2d');
+          const lowerY = H * 0.62;
+          panels.forEach(function (p) {
+            const lower = pal.lower && p.y + p.h * 0.5 > lowerY;
+            const base = lower ? pal.lower : pal.base;
+            const d = Math.round((p.tone - 0.5) * pal.var * 2);
+            a.fillStyle = 'rgb(' + (base[0] + d) + ',' + (base[1] + d) + ',' + (base[2] + d) + ')';
+            a.fillRect(p.x, p.y, p.w, p.h);
+            // 面板內緣陰影（舊化）
+            const gr = a.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+            gr.addColorStop(0, 'rgba(255,255,255,0.06)'); gr.addColorStop(1, 'rgba(0,0,0,0.12)');
+            a.fillStyle = gr; a.fillRect(p.x, p.y, p.w, p.h);
+            if (p.kind < 0.09) { a.fillStyle = '#16181b'; a.fillRect(p.x + 6, p.y + 6, p.w - 12, p.h - 12); a.fillStyle = 'rgba(120,126,132,0.55)'; for (let yy = p.y + 9; yy < p.y + p.h - 8; yy += 5) a.fillRect(p.x + 8, yy, p.w - 16, 2); }
+            else if (p.kind < 0.2) { a.fillStyle = 'rgba(20,26,32,0.55)'; a.fillRect(p.x + 5, p.y + 5, p.w - 10, p.h - 10); }
+            else if (p.kind < 0.26 && p.w > 50) {
+              // 黃色導引箭頭（甲板標線）
+              a.fillStyle = pal.stripe; const cy = p.y + p.h / 2;
+              for (let xx = p.x + 10; xx < p.x + p.w - 20; xx += 22) { a.beginPath(); a.moveTo(xx, cy - 7); a.lineTo(xx + 9, cy); a.lineTo(xx, cy + 7); a.lineTo(xx + 5, cy + 7); a.lineTo(xx + 14, cy); a.lineTo(xx + 5, cy - 7); a.closePath(); a.fill(); }
+            } else if (p.kind < 0.31 && p.w > 30) {
+              // 黃黑警示斜紋
+              a.save(); a.beginPath(); a.rect(p.x + 4, p.y + p.h - 12, p.w - 8, 8); a.clip();
+              a.fillStyle = pal.stripe; a.fillRect(p.x, p.y + p.h - 12, p.w, 8); a.fillStyle = '#1b1c1e';
+              for (let xx = p.x - 10; xx < p.x + p.w + 10; xx += 12) { a.beginPath(); a.moveTo(xx, p.y + p.h - 4); a.lineTo(xx + 6, p.y + p.h - 4); a.lineTo(xx + 12, p.y + p.h - 12); a.lineTo(xx + 6, p.y + p.h - 12); a.closePath(); a.fill(); }
+              a.restore();
+            } else if (p.kind < 0.36) {
+              a.fillStyle = pal.accent; a.fillRect(p.x + 6, p.y + 6, Math.min(22, p.w * 0.3), 5); a.fillRect(p.x + 6, p.y + 13, Math.min(10, p.w * 0.15), 5);
+            } else if (p.kind < 0.41 && p.w > 60) {
+              a.font = '700 ' + Math.min(18, Math.round(p.h * 0.32)) + 'px monospace'; a.fillStyle = 'rgba(40,44,50,0.75)';
+              a.fillText(['UNF', 'CV-07', '42', 'A-9', 'SEC', '07', 'DOCK'][Math.floor(p.r2 * 7)], p.x + 8, p.y + p.h * 0.62);
+            }
+            // 面板縫 + 高光邊
+            a.strokeStyle = 'rgba(16,18,22,0.9)'; a.lineWidth = 2.5; a.strokeRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
+            a.strokeStyle = 'rgba(255,255,255,0.10)'; a.lineWidth = 1; a.strokeRect(p.x + 3.5, p.y + 3.5, p.w - 7, p.h - 7);
+          });
+          // 油污、流痕、焦痕
+          grime.forEach(function (gm) {
+            const rg = a.createRadialGradient(gm.x, gm.y, 1, gm.x, gm.y, gm.r);
+            rg.addColorStop(0, 'rgba(34,30,26,' + gm.a + ')'); rg.addColorStop(1, 'rgba(34,30,26,0)');
+            a.fillStyle = rg; a.fillRect(gm.x - gm.r, gm.y - gm.r, gm.r * 2, gm.r * 2);
+            if (gm.streak) { a.fillStyle = 'rgba(30,28,26,' + (gm.a * 0.8) + ')'; a.fillRect(gm.x, gm.y, 1.5 + r2() * 2.5, gm.len); }
+          });
+          return tex(cA);
+        });
+        return { maps: maps, bumpMap: bumpMap, emissiveMap: emissiveMap };
+      })();
+
+      // 依法線做平面投影 UV（不同大小的零件紋理密度一致）
+      function planarUV(g, sx, sy, ox, oy) {
+        const pos = g.attributes.position, nor = g.attributes.normal, n = pos.count;
+        const uv = new Float32Array(n * 2);
+        for (let i = 0; i < n; i++) {
+          const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
+          let u, v;
+          if (ay >= ax && ay >= az) { u = z; v = x; } else if (ax >= az) { u = z; v = y; } else { u = x; v = y; }
+          uv[i * 2] = u / sx + ox; uv[i * 2 + 1] = v / sy + oy;
         }
-        return { map: toTex(cA), bumpMap: toTex(cB), roughnessMap: toTex(cR), emissiveMap: toTex(cE) };
+        g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      }
+      // 把多個零件合併成一個幾何（降低 draw call）
+      function mergeParts(parts, uvScaleX, uvScaleY) {
+        let total = 0;
+        const prepared = parts.map(function (p) {
+          const g = p.geo.index ? p.geo.toNonIndexed() : p.geo.clone();
+          g.applyMatrix4(p.m);
+          planarUV(g, uvScaleX || 32, uvScaleY || 16, p.ou || 0, p.ov || 0);
+          total += g.attributes.position.count;
+          return g;
+        });
+        const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3), uv = new Float32Array(total * 2);
+        let o = 0;
+        prepared.forEach(function (g) {
+          pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); uv.set(g.attributes.uv.array, o * 2);
+          o += g.attributes.position.count; g.dispose();
+        });
+        const out = new THREE.BufferGeometry();
+        out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        out.computeBoundingSphere();
+        return sharedGeo(out);
+      }
+      const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v3 = new THREE.Vector3(), _s3 = new THREE.Vector3();
+      function mtx(x, y, z, sx, sy, sz, rx, ry, rz) {
+        _e.set(rx || 0, ry || 0, rz || 0); _q.setFromEuler(_e);
+        return new THREE.Matrix4().compose(_v3.set(x, y, z), _q, _s3.set(sx || 1, sy || 1, sz || 1));
+      }
+      const unitBox = sharedGeo(new THREE.BoxGeometry(1, 1, 1));
+      const unitCyl = sharedGeo(new THREE.CylinderGeometry(0.5, 0.5, 1, 12));
+      const nozzleGeo = sharedGeo(new THREE.CylinderGeometry(0.42, 0.55, 1, 16, 1, true).rotateX(Math.PI / 2));
+      const glowDiscGeo = sharedGeo(new THREE.CircleGeometry(0.5, 18));
+      function hullExtrude(pts, height, bevel) {
+        const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+        s.closePath();
+        const g = new THREE.ExtrudeGeometry(s, { depth: height, bevelEnabled: true, bevelThickness: bevel || 0.35, bevelSize: bevel || 0.35, bevelSegments: 1 });
+        g.rotateX(Math.PI / 2); g.translate(0, height, 0); // 艦首朝 +Z，底部在 y=0
+        return g;
+      }
+      function instanced(geo, mat, list, colors) {
+        const im = new THREE.InstancedMesh(geo, mat, list.length);
+        list.forEach(function (m, i) { im.setMatrixAt(i, m); });
+        if (colors) { colors.forEach(function (c, i) { im.setColorAt(i, c); }); }
+        im.instanceMatrix.needsUpdate = true;
+        im.frustumCulled = false;
+        return im;
+      }
+      let capMats = null;
+      function capitalMaterials() {
+        if (capMats) return capMats;
+        capMats = {
+          hull: HULL_PALETTES.map(function (p, i) {
+            return sharedMat(new THREE.MeshStandardMaterial({ map: hullTex.maps[i], bumpMap: hullTex.bumpMap, bumpScale: 0.55, roughness: i === 3 ? 0.6 : 0.74, metalness: i === 3 ? 0.5 : 0.22, envMapIntensity: 0.55, emissive: 0xffffff, emissiveMap: hullTex.emissiveMap, emissiveIntensity: i === 3 ? 1.6 : 1.1 }));
+          }),
+          dark: sharedMat(new THREE.MeshStandardMaterial({ color: 0x2a2e33, roughness: 0.62, metalness: 0.45, envMapIntensity: 0.45 })),
+          greeble: sharedMat(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.3, envMapIntensity: 0.5 })),
+          dock: dockMaterial(),
+          glowCyan: sharedMat(new THREE.MeshBasicMaterial({ color: 0x8ff2ff, toneMapped: false })),
+          glowEngine: sharedMat(new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, fog: false, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false })),
+          navRed: sharedMat(new THREE.MeshBasicMaterial({ color: 0xff2a20, toneMapped: false })),
+          navGreen: sharedMat(new THREE.MeshBasicMaterial({ color: 0x40ff7a, toneMapped: false })),
+          strobe: sharedMat(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }))
+        };
+        return capMats;
       }
 
-      // Dark Forged Iron Monochrome Carrier Hulls (High-Contrast Starlight Edge Silhouette)
-      const carrierPBRs = [
-        createCarrierHullPBR('CVN-07', 0, '#1e2228', '#15181d', '#cfd8e3'),
-        createCarrierHullPBR('UNF-42', 1, '#232529', '#181a1e', '#c8cdd4'),
-        createCarrierHullPBR('AEGIS-9', 2, '#1b1e23', '#121519', '#d6dde6')
-      ];
+      // 船塢材質：用世界座標做三平面 UV，Instanced 方塊大小不同也不會拉伸貼圖，並帶出舷窗燈點
+      function dockMaterial() {
+        const m = new THREE.MeshStandardMaterial({ color: 0x8a9099, map: hullTex.maps[3], bumpMap: hullTex.bumpMap, bumpScale: 0.5, roughness: 0.7, metalness: 0.4, envMapIntensity: 0.5, emissive: 0xffffff, emissiveMap: hullTex.emissiveMap, emissiveIntensity: 1.4 });
+        m.onBeforeCompile = function (sh) {
+          sh.vertexShader = sh.vertexShader.replace('#include <uv_vertex>', [
+            '#include <uv_vertex>',
+            '#ifdef USE_INSTANCING',
+            '  vec4 tpW = modelMatrix * instanceMatrix * vec4(position, 1.0);',
+            '#else',
+            '  vec4 tpW = modelMatrix * vec4(position, 1.0);',
+            '#endif',
+            '  vec3 tpN = abs(normal);',
+            '  vec2 tpUv = tpN.y > 0.5 ? tpW.xz : (tpN.x > 0.5 ? tpW.zy : tpW.xy);',
+            '  vUv = tpUv / vec2(24.0, 12.0);'
+          ].join('\n'));
+        };
+        m.customProgramCacheKey = function () { return 'dock-triplanar'; };
+        return sharedMat(m);
+      }
 
-      // Detailed Multi-Part Capital Carrier Builder (Beveled Hull, Split Flight Deck, Bridge Island, Hangar Bays, Quad Thrusters)
+      // 寫實主力母艦：尖艦首多層艦體 + 艦橋塔 + 大量機械細節 + 雙聯砲塔 + 六聯引擎
+      const capitalTemplates = {};
+      function capitalTemplate(variantIdx) {
+        if (capitalTemplates[variantIdx]) return capitalTemplates[variantIdx];
+        const M = capitalMaterials(), rng = makeRng(311 + variantIdx * 17);
+        const hullParts = [], darkParts = [];
+        const I = new THREE.Matrix4();
+        hullParts.push({ geo: hullExtrude([[-8, -36], [8, -36], [8.6, 14], [6.2, 28], [2.2, 40], [-2.2, 40], [-6.2, 28], [-8.6, 14]], 6, 0.5), m: mtx(0, -1, 0) });
+        hullParts.push({ geo: hullExtrude([[-5.6, -30], [5.6, -30], [5.8, 16], [3.6, 26], [-3.6, 26], [-5.8, 16]], 2.6, 0.3), m: mtx(0, 5.2, 0), ou: 0.37 });
+        darkParts.push({ geo: hullExtrude([[-6, -34], [6, -34], [6.4, 18], [3.2, 32], [-3.2, 32], [-6.4, 18]], 4.6, 0.4), m: mtx(0, -5.4, 0) });
+        // 側舷舷台（雙側長條結構）
+        [-1, 1].forEach(function (s) {
+          hullParts.push({ geo: unitBox, m: mtx(s * 9.4, 1.6, -6, 2.6, 3.6, 44), ou: 0.6 });
+          darkParts.push({ geo: unitBox, m: mtx(s * 10.8, 1.6, -6, 0.5, 2.2, 40) });
+        });
+        // 艦橋塔（偏後方多層）
+        hullParts.push({ geo: unitBox, m: mtx(0, 9.8, -19, 9.5, 4.2, 15), ou: 0.2 });
+        hullParts.push({ geo: unitBox, m: mtx(0, 13.4, -21, 7, 3.2, 10), ou: 0.5 });
+        hullParts.push({ geo: unitBox, m: mtx(0, 16.0, -20, 8.6, 1.8, 5.2), ou: 0.8 });
+        darkParts.push({ geo: unitBox, m: mtx(0, 16.0, -17.3, 8.8, 0.9, 0.6) });
+        darkParts.push({ geo: unitCyl, m: mtx(1.6, 20.5, -21, 0.35, 8, 0.35) });
+        darkParts.push({ geo: unitCyl, m: mtx(-1.4, 19.0, -22, 0.25, 5, 0.25) });
+        // 艦尾引擎段
+        darkParts.push({ geo: unitBox, m: mtx(0, 0.6, -38, 15, 8.5, 4.5) });
+        hullParts.push({ geo: unitBox, m: mtx(0, 5.6, -36.5, 13, 1.6, 6), ou: 0.1 });
+        const hullGeo = mergeParts(hullParts), darkGeo = mergeParts(darkParts);
+
+        // 機械細節（Greebles）：甲板、舷側、艦橋上的大量小方塊
+        const gl = [], gc = [], light = new THREE.Color(0x9ea4aa), mid = new THREE.Color(0x6a7078), dk = new THREE.Color(0x24282e);
+        function addG(x, y, z, sx, sy, sz) { gl.push(mtx(x, y, z, sx, sy, sz)); const r = rng(); gc.push(r < 0.55 ? light : (r < 0.82 ? mid : dk)); }
+        for (let i = 0; i < 70; i++) { const z = -28 + rng() * 52, w = 0.5 + rng() * 2.2, h = 0.3 + rng() * 1.4, d = 0.6 + rng() * 3.2; addG((rng() - 0.5) * 9.5, 7.8 + h / 2, z, w, h, d); }
+        for (let i = 0; i < 50; i++) { const s = rng() < 0.5 ? -1 : 1, z = -34 + rng() * 60, h = 0.4 + rng() * 2, d = 0.8 + rng() * 4; addG(s * (8.9 + rng() * 0.6), -0.5 + rng() * 5, z, 0.6 + rng() * 0.8, h, d); }
+        for (let i = 0; i < 30; i++) { const s = rng() < 0.5 ? -1 : 1, z = -32 + rng() * 54; addG(s * (6.5 + rng() * 2), 5.2 + rng() * 0.6, z, 0.6 + rng() * 1.4, 0.4 + rng() * 0.9, 0.8 + rng() * 2.5); }
+        for (let i = 0; i < 26; i++) { addG((rng() - 0.5) * 9, 12 + rng() * 6, -26 + rng() * 12, 0.4 + rng() * 1.5, 0.4 + rng() * 1.2, 0.4 + rng() * 1.5); }
+        for (let i = 0; i < 24; i++) { const z = -30 + rng() * 56; addG((rng() - 0.5) * 10, -6 - rng() * 1.2, z, 0.8 + rng() * 2, 0.6 + rng(), 1 + rng() * 3); }
+
+        // 雙聯砲塔
+        const tBase = [], tBody = [], tBarrel = [];
+        [[0, 18], [0, 8], [0, -2], [-6.8, 22], [6.8, 22], [-7.2, -8], [7.2, -8], [-7.2, -24], [7.2, -24]].forEach(function (tp, i) {
+          const y = Math.abs(tp[0]) > 1 ? 5.6 : 7.8, rot = (rng() - 0.5) * 1.2;
+          tBase.push(mtx(tp[0], y + 0.35, tp[1], 2.2, 0.7, 2.2));
+          tBody.push(mtx(tp[0], y + 1.05, tp[1], 2.2, 0.9, 2.6, 0, rot, 0));
+          [-0.45, 0.45].forEach(function (bx) {
+            const off = new THREE.Vector3(bx, 0, 2.6).applyAxisAngle(new THREE.Vector3(0, 1, 0), rot);
+            tBarrel.push(mtx(tp[0] + off.x, y + 1.15, tp[1] + off.z, 0.22, 0.22, 3.2, 0, rot, 0));
+          });
+        });
+        // 引擎
+        const noz = [], glow = [];
+        [[-4.6, 2.6], [0, 2.6], [4.6, 2.6], [-4.6, -1.6], [0, -1.6], [4.6, -1.6]].forEach(function (ep) {
+          noz.push(mtx(ep[0], ep[1], -41.6, 3.6, 3.6, 2.6));
+          glow.push(mtx(ep[0], ep[1], -42.2, 3.2, 3.2, 1, 0, Math.PI, 0));
+        });
+        // 舷窗燈條
+        const strips = [];
+        [-1, 1].forEach(function (s) {
+          for (let k = 0; k < 4; k++) strips.push(mtx(s * 10.75, 0.4 + k * 0.9, -6 + (rng() - 0.5) * 6, 0.12, 0.18, 14 + rng() * 14));
+          strips.push(mtx(s * 4.77, 13.6, -21, 0.1, 0.4, 7.5));
+        });
+        strips.push(mtx(0, 16.0, -17.62, 7.6, 0.35, 0.1));
+
+        capitalTemplates[variantIdx] = { hullGeo: hullGeo, darkGeo: darkGeo, gl: gl, gc: gc, tBase: tBase, tBody: tBody, tBarrel: tBarrel, noz: noz, glow: glow, strips: strips };
+        return capitalTemplates[variantIdx];
+      }
       function buildCapitalCarrier(variantIdx, scale) {
+        const v = variantIdx % 3, T = capitalTemplate(v), M = capitalMaterials();
         const g = new THREE.Group();
-        const pbr = carrierPBRs[variantIdx % carrierPBRs.length];
-        const hullMat = new THREE.MeshStandardMaterial({
-          map: pbr.map, bumpMap: pbr.bumpMap, bumpScale: 0.45,
-          roughnessMap: pbr.roughnessMap, roughness: 0.34, metalness: 0.94, envMapIntensity: 1.25,
-          emissive: 0xdde8f2, emissiveMap: pbr.emissiveMap, emissiveIntensity: 0.48
-        });
-        const darkMat = new THREE.MeshStandardMaterial({
-          map: pbrGunmetal.map, bumpMap: pbrGunmetal.bumpMap, bumpScale: 0.35,
-          roughness: 0.42, metalness: 0.90, envMapIntensity: 1.6
-        });
-        const rustSteel = new THREE.MeshStandardMaterial({ color: 0x5c3926, roughness: 0.78, metalness: 0.65, envMapIntensity: 1.1 });
-
-        // Primary Armored Flight Deck & Main Hull Body
-        const mainHull = new THREE.Mesh(new THREE.BoxGeometry(18, 7.5, 58), hullMat);
-        g.add(mainHull);
-
-        // Twin Forward Catamaran Flight-Deck Prows
-        [-6.2, 6.2].forEach(function (px) {
-          const prow = new THREE.Mesh(new THREE.BoxGeometry(6.8, 5.2, 24), hullMat);
-          prow.position.set(px, 0.6, 35);
-          g.add(prow);
-          // Armored bumper rib
-          const rib = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.4, 3.2), rustSteel);
-          rib.position.set(px, 3.3, 44);
-          g.add(rib);
-        });
-
-        // Heavy Structural Hull Ribs & Side Hangar Gantry Bays
-        for (let rz = -20; rz <= 20; rz += 10) {
-          const belt = new THREE.Mesh(new THREE.BoxGeometry(19.6, 8.4, 2.2), darkMat);
-          belt.position.set(0, 0, rz);
-          g.add(belt);
-        }
-        [-9.4, 9.4].forEach(function (sx) {
-          const bayGlow = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.6, 18), new THREE.MeshBasicMaterial({ color: variantIdx === 1 ? 0xffb03a : 0x3ef4ff }));
-          bayGlow.position.set(sx, -0.5, 4);
-          g.add(bayGlow);
-        });
-
-        // Offset Towering Command Bridge Island + Comms Mast + Navigation Strobes
-        const island = new THREE.Mesh(new THREE.BoxGeometry(5.6, 9.5, 16), hullMat);
-        island.position.set(5.4, 8.2, -10);
-        g.add(island);
-        const bridgeCap = new THREE.Mesh(new THREE.BoxGeometry(7.2, 2.4, 7.5), darkMat);
-        bridgeCap.position.set(5.4, 13.4, -7.5);
-        g.add(bridgeCap);
-        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, 9.5, 8), rustSteel);
-        mast.position.set(5.4, 18.2, -11);
-        g.add(mast);
-        const strobe = new THREE.Mesh(new THREE.SphereGeometry(0.65, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff3b30 }));
-        strobe.position.set(5.4, 23.0, -11);
-        g.add(strobe);
-
-        // Dorsal Defense Turret Blisters & Ventral Reactor Keel
-        [-14, 2, 18].forEach(function (tz) {
-          const tur = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.8, 4.2), darkMat);
-          tur.position.set(-4.2, 4.6, tz);
-          g.add(tur);
-        });
-        const keel = new THREE.Mesh(new THREE.BoxGeometry(6.5, 4.2, 44), darkMat);
-        keel.position.set(0, -5.6, -4);
-        g.add(keel);
-
-        // Quad Capital-Class Rear Thruster Bells + Engine Glow
-        const engColor = variantIdx === 2 ? 0xff5a2b : (variantIdx === 1 ? 0xffa838 : 0x3ef4ff);
-        [[-5.2, 1.4], [5.2, 1.4], [-5.2, -1.8], [5.2, -1.8]].forEach(function (ep) {
-          const bell = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.7, 4.5, 14), darkMat);
-          bell.rotation.x = Math.PI / 2;
-          bell.position.set(ep[0], ep[1], -30.5);
-          g.add(bell);
-          const glow = new THREE.Mesh(new THREE.CircleGeometry(1.95, 14), new THREE.MeshBasicMaterial({ color: engColor, side: THREE.DoubleSide }));
-          glow.position.set(ep[0], ep[1], -32.8);
-          g.add(glow);
-        });
-
+        g.add(new THREE.Mesh(T.hullGeo, M.hull[v]));
+        g.add(new THREE.Mesh(T.darkGeo, M.dark));
+        g.add(instanced(unitBox, M.greeble, T.gl, T.gc));
+        g.add(instanced(unitCyl, M.dark, T.tBase));
+        g.add(instanced(unitBox, M.hull[v], T.tBody));
+        g.add(instanced(unitBox, M.dark, T.tBarrel));
+        g.add(instanced(nozzleGeo, M.dark, T.noz));
+        g.add(instanced(glowDiscGeo, M.glowEngine, T.glow));
+        g.add(instanced(unitBox, M.glowCyan, T.strips));
+        // 引擎光暈
+        const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleGlowTex(), color: 0xff9a40, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+        eg.position.set(0, 0.5, -44); eg.scale.set(26, 16, 1); g.add(eg);
+        const navL = new THREE.Mesh(unitBox, M.navRed); navL.position.set(-8.8, 4.8, 12); navL.scale.setScalar(0.5); g.add(navL);
+        const navR = new THREE.Mesh(unitBox, M.navGreen); navR.position.set(8.8, 4.8, 12); navR.scale.setScalar(0.5); g.add(navR);
+        const strobe = new THREE.Mesh(unitBox, M.strobe); strobe.position.set(1.6, 24.6, -21); strobe.scale.setScalar(0.6); g.add(strobe);
         g.scale.setScalar(scale);
         return { group: g, strobe: strobe };
+      }
+
+      // 巨型太空站塔（參考圖三）：深色鋼構塔身 + 多層平台 + 燈帶 + 天線 + 橫向連接臂
+      let stationTpl = null;
+      function stationTemplate() {
+        if (stationTpl) return stationTpl;
+        const rng = makeRng(4242), parts = [], darkParts = [];
+        parts.push({ geo: unitBox, m: mtx(0, 0, 0, 30, 300, 30) });
+        parts.push({ geo: unitBox, m: mtx(0, -40, 0, 46, 36, 46), ou: 0.3 });
+        parts.push({ geo: unitBox, m: mtx(0, 70, 0, 40, 18, 40), ou: 0.6 });
+        parts.push({ geo: unitBox, m: mtx(0, 160, 0, 20, 30, 20), ou: 0.1 });
+        parts.push({ geo: unitBox, m: mtx(0, -175, 0, 64, 60, 64), ou: 0.45 });
+        parts.push({ geo: unitBox, m: mtx(-95, -62, 0, 160, 8, 12), ou: 0.2 });
+        darkParts.push({ geo: unitBox, m: mtx(-95, -70, 0, 160, 3, 6) });
+        for (let i = 0; i < 9; i++) darkParts.push({ geo: unitBox, m: mtx(-30 - i * 16, -70, 0, 1.2, 14, 1.2, 0, 0, 0.6) });
+        darkParts.push({ geo: unitCyl, m: mtx(0, 205, 0, 2, 60, 2) });
+        darkParts.push({ geo: unitCyl, m: mtx(6, 190, 4, 1, 34, 1) });
+        darkParts.push({ geo: unitCyl, m: mtx(-6, 185, -3, 0.8, 26, 0.8) });
+        for (let i = 0; i < 46; i++) {
+          const y = -140 + rng() * 290, side = Math.floor(rng() * 4), len = 8 + rng() * 26, h = 2 + rng() * 4, d = 6 + rng() * 12;
+          const rot = side * Math.PI / 2, off = 15 + len / 2;
+          parts.push({ geo: unitBox, m: mtx(Math.sin(rot) * off, y, Math.cos(rot) * off, Math.cos(rot) === 0 ? len : d, h, Math.cos(rot) === 0 ? d : len), ou: rng(), ov: rng() });
+          if (rng() < 0.5) darkParts.push({ geo: unitBox, m: mtx(Math.sin(rot) * (off + len / 2), y - h, Math.cos(rot) * (off + len / 2), 0.8, h * 2.5, 0.8) });
+        }
+        const strips = [];
+        [[15.3, 0, 0], [-15.3, 0, 0], [0, 0, 15.3], [0, 0, -15.3]].forEach(function (f, i) {
+          for (let k = 0; k < 2; k++) strips.push(mtx(f[0] + (f[0] ? 0 : (k - 0.5) * 12), -20 + rng() * 120, f[2] + (f[2] ? 0 : (k - 0.5) * 12), f[0] ? 0.6 : 1.2, 40 + rng() * 60, f[2] ? 0.6 : 1.2));
+        });
+        stationTpl = { geo: mergeParts(parts, 64, 32), darkGeo: mergeParts(darkParts), strips: strips };
+        return stationTpl;
+      }
+      function buildStation() {
+        const T = stationTemplate(), M = capitalMaterials(), g = new THREE.Group();
+        g.add(new THREE.Mesh(T.geo, M.hull[3]));
+        g.add(new THREE.Mesh(T.darkGeo, M.dark));
+        g.add(instanced(unitBox, M.glowCyan, T.strips));
+        const beacon = new THREE.Mesh(unitBox, M.navRed); beacon.position.set(0, 236, 0); beacon.scale.setScalar(3); g.add(beacon);
+        return g;
+      }
+
+      // 光暈 / 星芒 / 雲霧貼圖（共用）
+      let _glowTex = null, _streakTex = null, _hazeTex = null;
+      function muzzleGlowTex() {
+        if (_glowTex) return _glowTex;
+        const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+        const rg = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+        rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(0.18, 'rgba(255,255,255,0.75)'); rg.addColorStop(0.45, 'rgba(255,255,255,0.18)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+        _glowTex = new THREE.CanvasTexture(c); return _glowTex;
+      }
+      function streakTex() {
+        if (_streakTex) return _streakTex;
+        const c = document.createElement('canvas'); c.width = 512; c.height = 32; const g = c.getContext('2d');
+        const lg = g.createLinearGradient(0, 0, 512, 0);
+        lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,1)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = lg; g.fillRect(0, 13, 512, 6);
+        const vg = g.createLinearGradient(0, 0, 0, 32); vg.addColorStop(0, 'rgba(0,0,0,1)'); vg.addColorStop(0.5, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,1)');
+        g.globalCompositeOperation = 'destination-out'; g.fillStyle = vg; g.fillRect(0, 0, 512, 32);
+        _streakTex = new THREE.CanvasTexture(c); return _streakTex;
+      }
+      function hazeTex() {
+        if (_hazeTex) return _hazeTex;
+        const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), rng = makeRng(77);
+        for (let i = 0; i < 70; i++) {
+          const ang = rng() * Math.PI * 2, dist = Math.pow(rng(), 0.7) * S * 0.3;
+          const x = S / 2 + Math.cos(ang) * dist, y = S / 2 + Math.sin(ang) * dist * 0.6, r = 18 + rng() * 52;
+          const rg = g.createRadialGradient(x, y, 0, x, y, r);
+          rg.addColorStop(0, 'rgba(255,255,255,' + (0.05 + rng() * 0.09) + ')'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+          g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        _hazeTex = new THREE.CanvasTexture(c); return _hazeTex;
       }
 
       const pbrCeramic = createHullPBR('#cfd8e3', '#aebbc9', '#203245', '#2ce8ff', false);
@@ -2187,16 +2331,39 @@
       }
       const bossLight = new THREE.PointLight(0xff4818, 0, 58); scene.add(bossLight);
 
-      // Bloom 後處理（UnrealBloom，行動裝置用 WebGL2 MSAA 保留抗鋸齒）
-      let composer = null, bloomPass = null, bloomActive = false;
+      // 後處理：Bloom 泛光 + 電影調色（冷色暗部 / 暖色亮部 / 去飽和 / 暗角 / 底片顆粒 / 邊緣色散）
+      let composer = null, bloomPass = null, gradePass = null, bloomActive = false, bloomSuppressed = false;
+      const GRADE_SHADER = {
+        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uSat: { value: 0.78 }, uContrast: { value: 1.1 }, uLift: { value: new THREE.Vector3(0.008, 0.022, 0.034) }, uGain: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uVignette: { value: 0.42 }, uGrain: { value: 0.03 }, uCA: { value: 1.0 } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: [
+          'uniform sampler2D tDiffuse; uniform float uTime, uSat, uContrast, uVignette, uGrain, uCA; uniform vec3 uLift, uGain; varying vec2 vUv;',
+          'void main(){',
+          '  vec2 d = vUv - 0.5; float r2 = dot(d, d);',
+          '  vec2 off = d * r2 * 0.012 * uCA;',
+          '  vec3 c = vec3(texture2D(tDiffuse, vUv - off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv + off).b);',
+          '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+          '  c = mix(vec3(l), c, uSat);',
+          '  c = (c - 0.5) * uContrast + 0.5;',
+          '  c += uLift * (1.0 - smoothstep(0.0, 0.55, l));',
+          '  c = mix(c, c * uGain, smoothstep(0.35, 1.0, l));',
+          '  c *= 1.0 - uVignette * smoothstep(0.08, 0.6, r2 * 1.6);',
+          '  float n = fract(sin(dot(vUv * vec2(1280.0, 720.0) + uTime * 61.7, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;',
+          '  c += n * uGrain;',
+          '  gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);',
+          '}'
+        ].join('\n')
+      };
       function disposeComposer() {
         if (!composer) return;
         try { composer.renderTarget1.dispose(); composer.renderTarget2.dispose(); if (bloomPass) bloomPass.dispose(); } catch (e) {}
-        composer = null; bloomPass = null; bloomActive = false;
+        composer = null; bloomPass = null; gradePass = null; bloomActive = false;
       }
       function setupPostFX(cfg) {
         disposeComposer();
-        if (!(settings.bloom && cfg.bloom > 0 && THREE.EffectComposer && THREE.UnrealBloomPass)) return;
+        const wantBloom = settings.bloom && !bloomSuppressed && cfg.bloom > 0 && THREE.UnrealBloomPass;
+        const wantGrade = settings.cinematic !== false && cfg.grade && THREE.ShaderPass;
+        if (!THREE.EffectComposer || !(wantBloom || wantGrade)) return;
         try {
           const pr = renderer.getPixelRatio(), w = window.innerWidth, h = window.innerHeight;
           const params = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat };
@@ -2207,13 +2374,13 @@
           composer = new THREE.EffectComposer(renderer, rt);
           composer._pixelRatio = pr; composer.setSize(w, h);
           composer.addPass(new THREE.RenderPass(scene, camera));
-          bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), cfg.bloom, 0.42, 0.9);
-          composer.addPass(bloomPass);
-          bloomActive = true;
+          if (wantBloom) { bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), cfg.bloom, 0.5, 0.86); composer.addPass(bloomPass); bloomActive = true; }
+          if (wantGrade) { gradePass = new THREE.ShaderPass(GRADE_SHADER); composer.addPass(gradePass); }
         } catch (e) { console.warn('PostFX disabled', e); disposeComposer(); }
       }
       function renderFrame() {
-        if (bloomActive && composer) composer.render(); else renderer.render(scene, camera);
+        if (composer) { if (gradePass) gradePass.uniforms.uTime.value = (performance.now() * 0.001) % 100; composer.render(); }
+        else renderer.render(scene, camera);
       }
 
       // 自適應解析度：每 2 秒量測 FPS，自動升降 pixelRatio，必要時關閉泛光
@@ -2229,7 +2396,8 @@
         const fps = perf.frames / perf.acc; perf.acc = 0; perf.frames = 0;
         const cfg = TIERS[currentTier], cap = Math.min(window.devicePixelRatio || 1, cfg.maxDpr);
         if (fps < 48 && perf.dpr > cfg.minDpr + 0.01) { setDpr(Math.max(cfg.minDpr, perf.dpr - 0.15)); perf.raiseLock = 10; }
-        else if (fps < 40 && bloomActive) { disposeComposer(); showToast('自動畫質：已暫停泛光特效以維持流暢'); perf.raiseLock = 10; }
+        else if (fps < 40 && bloomActive) { bloomSuppressed = true; setupPostFX(cfg); showToast('自動畫質：已暫停泛光特效以維持流暢'); perf.raiseLock = 10; }
+        else if (fps < 34 && composer) { disposeComposer(); showToast('自動畫質：已暫停電影調色以維持流暢'); perf.raiseLock = 10; }
         else if (fps > 57 && perf.raiseLock <= 0 && perf.dpr < cap - 0.01) { setDpr(Math.min(cap, perf.dpr + 0.1)); perf.raiseLock = 4; }
       }
 
@@ -2313,9 +2481,9 @@
         '  float ndl = max(dot(bumpN, lightDir), 0.0);',
         '  float macroNdl = dot(vN, lightDir);',
         '  float terminator = smoothstep(-0.18, 0.22, macroNdl);',
-        '  vec3 deepBasin = vec3(0.05, 0.09, 0.16);',
-        '  vec3 highland  = vec3(0.32, 0.42, 0.56);',
-        '  vec3 ridgePeak = vec3(0.72, 0.64, 0.56);',
+        '  vec3 deepBasin = vec3(0.09, 0.08, 0.10);',
+        '  vec3 highland  = vec3(0.40, 0.35, 0.38);',
+        '  vec3 ridgePeak = vec3(0.74, 0.67, 0.64);',
         '  vec3 surf = mix(deepBasin, highland, smoothstep(0.28, 0.58, h));',
         '  surf = mix(surf, ridgePeak, smoothstep(0.58, 0.80, h));',
         '  // Swirling NASA atmospheric storm cloud veil',
@@ -2370,9 +2538,9 @@
       // 共用貼圖（不可在環境重建時釋放）
       function isSharedTex(t) {
         if (!t) return true;
-        const shared = [pbrCeramic, pbrGunmetal, pbrBoss, pbrRelic].concat(carrierPBRs);
+        const shared = [pbrCeramic, pbrGunmetal, pbrBoss, pbrRelic].concat([{ map: hullTex.bumpMap, emissiveMap: hullTex.emissiveMap }], hullTex.maps.map(function (m) { return { map: m }; }));
         for (let i = 0; i < shared.length; i++) { const p = shared[i]; if (t === p.map || t === p.bumpMap || t === p.roughnessMap || t === p.emissiveMap) return true; }
-        return t === muzzleTex || t === fireballTex || t === smokePlumeTex;
+        return t === muzzleTex || t === fireballTex || t === smokePlumeTex || t === _glowTex || t === _streakTex || t === _hazeTex;
       }
       function disposeObject3D(root, disposeTextures) {
         root.traverse(function (o) {
@@ -2406,7 +2574,15 @@
         while (envGroup.children.length > 0) { const ch = envGroup.children[0]; envGroup.remove(ch); disposeObject3D(ch, true); }
         envRTs.forEach(function (rt) { rt.dispose(); }); envRTs = []; nebulaPlanes = [];
         nebulaUniforms = []; portalUniforms = []; asteroidData = []; bgCarriers = [];
-        keyLight.color.setHex(sec.key); rimLight.color.setHex(sec.rim);
+        // 寫實光照：太陽方向主光（逆光）+ 頂部冷色補光 + 低強度暖色反光 + 空間霧
+        const lk = SECTOR_LOOK[currentSectorIdx] || SECTOR_LOOK[0];
+        keyLight.color.setHex(lk.sunCol); keyLight.intensity = 2.6;
+        keyLight.position.set(lk.sun[0], lk.sun[1], lk.sun[2]).normalize().multiplyScalar(100); keyLight.position.y = Math.abs(keyLight.position.y) + 40;
+        rimLight.color.setHex(0xb4c2d6); rimLight.intensity = 1.25; rimLight.position.set(-40, 120, 90);
+        fillLight.color.setHex(0xff9c5a); fillLight.intensity = 0.5; fillLight.position.set(20, -70, 40);
+        hemiLight.color.setHex(0x3f506a); hemiLight.groundColor.setHex(0x0a0c11); hemiLight.intensity = 0.55;
+        scene.fog = new THREE.FogExp2(lk.fog, cfg.fogDensity);
+        scene.background = new THREE.Color(lk.bg);
 
         // Layer 1: Starfield
         const sGeo = new THREE.BufferGeometry(), sPos = new Float32Array(cfg.stars*3), sCol = new Float32Array(cfg.stars*3);
@@ -2418,7 +2594,7 @@
         }
         sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
         sGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
-        envGroup.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ size: 2.3, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false })));
+        envGroup.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ size: 2.3, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, fog: false })));
 
         // Layer 2: NASA/JWST Cosmic Cliffs Multi-Layer Deep Nebula + Luminous Ionization Ridges
         const goldColors = [0xffb454, 0xff7b9c, 0x64f0ff, 0xffcb78];
@@ -2468,9 +2644,9 @@
           landmarkGroup.add(new THREE.Mesh(new THREE.SphereGeometry(115, 36, 28), new THREE.MeshBasicMaterial({ color: 0x000000 })));
           const u = { uTime: { value: 0 }, uColA: { value: new THREE.Color(0xff6b1a) }, uColB: { value: new THREE.Color(0xffe18c) } };
           portalUniforms.push(u);
-          const disk = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), new THREE.ShaderMaterial({ vertexShader: NEBULA_VERT, fragmentShader: PORTAL_FRAG, uniforms: u, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+          const disk = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), new THREE.ShaderMaterial({ vertexShader: NEBULA_VERT, fragmentShader: PORTAL_FRAG, uniforms: u, transparent: true, blending: THREE.AdditiveBlending, fog: false, depthWrite: false, side: THREE.DoubleSide }));
           disk.rotation.x = 1.15; landmarkGroup.add(disk);
-          const halo = new THREE.Mesh(new THREE.RingGeometry(116, 150, 64), new THREE.MeshBasicMaterial({ color: 0xffc864, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+          const halo = new THREE.Mesh(new THREE.RingGeometry(116, 150, 64), new THREE.MeshBasicMaterial({ color: 0xffc864, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }));
           landmarkGroup.add(halo);
           landmarkGroup.position.set(160, 45, -540);
         } else if (sec.landmark === 'DERELICT') {
@@ -2487,10 +2663,11 @@
           const inner = new THREE.Mesh(new THREE.TorusGeometry(132, 8, 12, 36), new THREE.MeshBasicMaterial({ color: 0xf2b84b }));
           const u = { uTime: { value: 0 }, uColA: { value: new THREE.Color(0x168099) }, uColB: { value: new THREE.Color(0x52ffec) } };
           portalUniforms.push(u);
-          const vortex = new THREE.Mesh(new THREE.CircleGeometry(132, 48), new THREE.ShaderMaterial({ vertexShader: NEBULA_VERT, fragmentShader: PORTAL_FRAG, uniforms: u, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+          const vortex = new THREE.Mesh(new THREE.CircleGeometry(132, 48), new THREE.ShaderMaterial({ vertexShader: NEBULA_VERT, fragmentShader: PORTAL_FRAG, uniforms: u, transparent: true, blending: THREE.AdditiveBlending, fog: false, depthWrite: false, side: THREE.DoubleSide }));
           landmarkGroup.add(outer, inner, vortex);
           landmarkGroup.position.set(0, 28, -470);
         }
+        landmarkGroup.traverse(function (o) { if (o.material) o.material.fog = false; });
         envGroup.add(landmarkGroup);
 
         // Layer 4: Instanced Watertight Asteroids
@@ -2529,9 +2706,9 @@
           // Near-Field Obstacle Carrier 2 (colossal weathered UNF-42 cruising high right corridor!)
           { variant: 1, scale: 0.82, pos: [24, 7.5, -210], rotY: -0.48, rotZ: 0.07, speed: 12.5, obstacle: true, hitX: 12.5, hitY: 7.5, hitZ: 28 },
           // Mid-Far Capital Carrier 3 (massive AEGIS-9 dreadnought crossing deep midground)
-          { variant: 2, scale: 1.75, pos: [-105, 38, -260], rotY: 0.62, rotZ: -0.09, speed: 5.0, obstacle: false, hitX: 0, hitY: 0, hitZ: 0 },
+          { variant: 2, scale: 1.8, pos: [-125, 30, -300], rotY: 0.62, rotZ: -0.09, speed: 5.0, obstacle: false, hitX: 0, hitY: 0, hitZ: 0 },
           // Far Horizon Carrier 4 (giant silhouette dreadnought cruising near the ringed planet)
-          { variant: 0, scale: 2.05, pos: [125, -44, -350], rotY: -0.45, rotZ: 0.05, speed: 4.0, obstacle: false, hitX: 0, hitY: 0, hitZ: 0 }
+          { variant: 0, scale: 2.1, pos: [140, 14, -360], rotY: -0.45, rotZ: 0.05, speed: 4.0, obstacle: false, hitX: 0, hitY: 0, hitZ: 0 }
         ];
         carrierConfigs.forEach(function (cc, idx) {
           const built = buildCapitalCarrier(cc.variant, cc.scale);
@@ -2545,6 +2722,140 @@
             warnCd: 0
           });
         });
+
+        // ===== v3 寫實氛圍：巨型太空站、太陽星芒、體積霧雲、兩側船塢結構、遠方交戰 =====
+        const look = SECTOR_LOOK[currentSectorIdx] || SECTOR_LOOK[0];
+        const station = buildStation();
+        station.position.set(look.station[0], look.station[1], look.station[2]); station.rotation.y = look.stationRot; station.scale.setScalar(0.95);
+        envGroup.add(station);
+
+        // 太陽 + 光暈 + 橫向鏡頭星芒（配合 Bloom 呈現參考圖的強烈逆光）
+        const sun = new THREE.Group(); sun.position.set(look.sun[0], look.sun[1], look.sun[2]);
+        [[110, 1.0], [420, 0.32], [1100, 0.12]].forEach(function (d) {
+          sun.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleGlowTex(), color: look.sunCol, transparent: true, opacity: d[1], blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false })));
+          sun.children[sun.children.length - 1].scale.set(d[0], d[0], 1);
+        });
+        const streak = new THREE.Sprite(new THREE.SpriteMaterial({ map: streakTex(), color: look.sunCol, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
+        streak.scale.set(1500, 30, 1); sun.add(streak);
+        envGroup.add(sun);
+
+        // 體積霧雲（大型柔光雲片，隨飛行前進產生視差）
+        hazeSprites = [];
+        for (let i = 0; i < cfg.haze; i++) {
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: hazeTex(), color: look.haze, transparent: true, opacity: 0.25, depthWrite: false, fog: false }));
+          const h = { sp: sp, base: 0.16 + Math.random() * 0.18, s: 140 + Math.random() * 200 };
+          placeHaze(h, -60 - Math.random() * 340);
+          sp.material.rotation = Math.random() * 6.28;
+          envGroup.add(sp); hazeSprites.push(h);
+        }
+
+        // 兩側船塢結構（Instanced，隨前進循環捲動）
+        const segN = cfg.dockSegs, pieces = [], lights = [];
+        for (let s = 0; s < segN; s++) {
+          [-1, 1].forEach(function (side) {
+            const pz = function () { return (Math.random() - 0.5) * DOCK_LEN; };
+            pieces.push({ seg: s, x: side * 58, y: -26, z: 0, sx: 7, sy: 5, sz: DOCK_LEN * 0.98 });
+            if (Math.random() < 0.5) pieces.push({ seg: s, x: side * 70, y: -2, z: 0, sx: 3, sy: 2.4, sz: DOCK_LEN * 0.98 });
+            pieces.push({ seg: s, x: side * 58, y: -15, z: -DOCK_LEN * 0.45, sx: 3.2, sy: 22, sz: 3.2 });
+            pieces.push({ seg: s, x: side * 52, y: -24.5, z: pz(), sx: 4, sy: 2, sz: 6 + Math.random() * 10 });
+            pieces.push({ seg: s, x: side * 51, y: -21, z: pz(), sx: 12, sy: 1.2, sz: 1.6 });
+            const bh = 8 + Math.random() * 26, bw = 8 + Math.random() * 12;
+            pieces.push({ seg: s, x: side * (74 + Math.random() * 16), y: -29 + bh / 2, z: pz(), sx: bw, sy: bh, sz: 10 + Math.random() * 18 });
+            pieces.push({ seg: s, x: side * (74 + Math.random() * 16), y: -29 + bh + 1, z: pz(), sx: bw * 0.6, sy: 2, sz: 6 + Math.random() * 8 });
+            if (Math.random() < 0.5) pieces.push({ seg: s, x: side * (58 + Math.random() * 10), y: -14 + Math.random() * 10, z: pz(), sx: 6 + Math.random() * 6, sy: 4 + Math.random() * 6, sz: 8 + Math.random() * 12 });
+            if (Math.random() < 0.4) pieces.push({ seg: s, x: side * (70 + Math.random() * 8), y: 8 + Math.random() * 16, z: pz(), sx: 0.7, sy: 18 + Math.random() * 16, sz: 0.7 });
+            for (let k = 0; k < 7; k++) lights.push({ seg: s, x: side * (k < 4 ? 54.4 : 69 + Math.random() * 16), y: k < 4 ? -25 + (k % 2) * 2.4 : -26 + Math.random() * 24, z: pz(), sx: k < 4 ? 0.25 : 0.8, sy: 0.35, sz: k < 4 ? 3 + Math.random() * 5 : 0.8 });
+          });
+        }
+        const M = capitalMaterials();
+        dockMesh = new THREE.InstancedMesh(unitBox, M.dock, pieces.length); dockMesh.frustumCulled = false;
+        dockLights = new THREE.InstancedMesh(unitBox, M.glowCyan, lights.length); dockLights.frustumCulled = false;
+        dockSegZ = []; for (let s = 0; s < segN; s++) dockSegZ.push(20 - s * DOCK_LEN);
+        dockPieces = pieces; dockLightList = lights;
+        envGroup.add(dockMesh, dockLights);
+        updateDock(0);
+
+        // 遠方艦隊交戰：橘色曳光彈與爆閃
+        bgTracers = []; bgFlashes = []; bgBattleCd = 0;
+        for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(tracerGeo, tracerMat); m.visible = false; envGroup.add(m); bgTracers.push({ m: m, life: 0, v: new THREE.Vector3() }); }
+        for (let i = 0; i < 6; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleGlowTex(), color: 0xffa050, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false })); sp.visible = false; envGroup.add(sp); bgFlashes.push({ sp: sp, life: 0, max: 0.4, s: 20 }); }
+      }
+
+      // 各星域寫實色調（霧色、背景、太陽、雲霧、太空站位置）
+      const SECTOR_LOOK = [
+        { fog: 0x1a2433, bg: 0x04070d, sun: [150, 110, -900], sunCol: 0xe4f0ff, haze: 0x6a819c, station: [185, 10, -440], stationRot: 0.4 },
+        { fog: 0x26231f, bg: 0x070605, sun: [-230, 120, -880], sunCol: 0xffe6c4, haze: 0x857a6c, station: [-200, 0, -470], stationRot: -0.5 },
+        { fog: 0x281912, bg: 0x090403, sun: [-190, 140, -900], sunCol: 0xffcf96, haze: 0x82604c, station: [-195, -10, -450], stationRot: 0.9 },
+        { fog: 0x15222a, bg: 0x03070a, sun: [210, 150, -900], sunCol: 0xd4f4ff, haze: 0x55747e, station: [-175, 20, -410], stationRot: -0.2 },
+        { fog: 0x122527, bg: 0x030808, sun: [-220, 115, -900], sunCol: 0xe2fff8, haze: 0x527f7a, station: [215, 10, -470], stationRot: 0.7 }
+      ];
+      const DOCK_LEN = 64;
+      let hazeSprites = [], dockMesh = null, dockLights = null, dockSegZ = [], dockPieces = [], dockLightList = [];
+      let bgTracers = [], bgFlashes = [], bgBattleCd = 0;
+      const tracerGeo = sharedGeo(new THREE.CylinderGeometry(0.16, 0.16, 1, 5).rotateX(Math.PI / 2));
+      const tracerMat = sharedMat(new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
+      function placeHaze(h, z) {
+        // 靠近玩家航道的雲只放在兩側或上下，避免遮擋戰鬥
+        let x = (Math.random() - 0.5) * 420, y = -50 + Math.random() * 110;
+        if (z > -200 && Math.abs(x) < 55) x = (x < 0 ? -1 : 1) * (55 + Math.random() * 120);
+        h.sp.position.set(x, y, z);
+        h.sp.scale.set(h.s * 1.6, h.s, 1);
+      }
+      const _dm = new THREE.Matrix4();
+      function updateDock(fwd) {
+        if (!dockMesh) return;
+        const span = dockSegZ.length * DOCK_LEN;
+        for (let s = 0; s < dockSegZ.length; s++) { dockSegZ[s] += fwd; if (dockSegZ[s] > 60) dockSegZ[s] -= span; }
+        for (let i = 0; i < dockPieces.length; i++) {
+          const p = dockPieces[i];
+          _dm.makeScale(p.sx, p.sy, p.sz); _dm.setPosition(p.x, p.y, dockSegZ[p.seg] + p.z);
+          dockMesh.setMatrixAt(i, _dm);
+        }
+        for (let i = 0; i < dockLightList.length; i++) {
+          const p = dockLightList[i];
+          _dm.makeScale(p.sx, p.sy, p.sz); _dm.setPosition(p.x, p.y, dockSegZ[p.seg] + p.z);
+          dockLights.setMatrixAt(i, _dm);
+        }
+        dockMesh.instanceMatrix.needsUpdate = true; dockLights.instanceMatrix.needsUpdate = true;
+      }
+      const _ta = new THREE.Vector3(), _tb = new THREE.Vector3();
+      function updateAtmosphere(dt, fwd) {
+        for (let i = 0; i < hazeSprites.length; i++) {
+          const h = hazeSprites[i], p = h.sp.position;
+          p.z += fwd * 0.55;
+          if (p.z > 5) { placeHaze(h, -380 - Math.random() * 60); }
+          const near = Math.min(1, Math.max(0, (-p.z - 10) / 70));
+          h.sp.material.opacity = h.base * near;
+        }
+        updateDock(fwd);
+        bgBattleCd -= dt;
+        if (bgBattleCd <= 0) {
+          bgBattleCd = 0.12 + Math.random() * 0.3;
+          const t = bgTracers.find(function (x) { return x.life <= 0; });
+          if (t) {
+            const side = Math.random() < 0.5 ? -1 : 1;
+            _ta.set(side * (70 + Math.random() * 160), -10 + Math.random() * 70, -180 - Math.random() * 260);
+            _tb.set(_ta.x - side * (60 + Math.random() * 120), _ta.y + (Math.random() - 0.5) * 40, _ta.z + (Math.random() - 0.5) * 120);
+            t.v.subVectors(_tb, _ta).normalize().multiplyScalar(240 + Math.random() * 120);
+            t.m.position.copy(_ta); t.m.lookAt(_tb); t.m.scale.set(1, 1, 10 + Math.random() * 10);
+            t.m.visible = true; t.life = 0.5 + Math.random() * 0.5;
+            if (Math.random() < 0.35) {
+              const f = bgFlashes.find(function (x) { return x.life <= 0; });
+              if (f) { f.sp.position.copy(_tb); f.life = f.max = 0.35 + Math.random() * 0.3; f.s = 14 + Math.random() * 26; f.sp.visible = true; }
+            }
+          }
+        }
+        for (let i = 0; i < bgTracers.length; i++) {
+          const t = bgTracers[i]; if (t.life <= 0) continue;
+          t.life -= dt; t.m.position.addScaledVector(t.v, dt); t.m.position.z += fwd;
+          if (t.life <= 0) t.m.visible = false;
+        }
+        for (let i = 0; i < bgFlashes.length; i++) {
+          const f = bgFlashes[i]; if (f.life <= 0) continue;
+          f.life -= dt; const k = Math.max(0, f.life / f.max);
+          f.sp.material.opacity = k * 0.9; f.sp.scale.setScalar(f.s * (1.6 - k)); f.sp.position.z += fwd;
+          if (f.life <= 0) f.sp.visible = false;
+        }
       }
 
       // Streamlined Aerospace VX-09 Vanguard (Curved Lathe Fuselage + Bezier Swept Wings + Animated GLSL Ion Jet Flames)
@@ -2572,7 +2883,7 @@
         const darkAlloy = new THREE.MeshStandardMaterial({ color: 0x161b24, roughness: 0.26, metalness: 0.95, envMapIntensity: 1.8 });
         const copperBurn = new THREE.MeshStandardMaterial({ color: 0x6b4730, roughness: 0.30, metalness: 0.92, envMapIntensity: 1.7 });
         const canopyMat = new THREE.MeshStandardMaterial({ color: 0x0c243b, roughness: 0.05, metalness: 0.96, envMapIntensity: 2.4, emissive: 0x0b2c48, emissiveIntensity: 0.45 });
-        const jetMat = new THREE.ShaderMaterial({ vertexShader: JET_VERT, fragmentShader: JET_FRAG, uniforms: jetFlameUniforms, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+        const jetMat = new THREE.ShaderMaterial({ vertexShader: JET_VERT, fragmentShader: JET_FRAG, uniforms: jetFlameUniforms, transparent: true, blending: THREE.AdditiveBlending, fog: false, depthWrite: false, side: THREE.DoubleSide });
 
         // 1. Sleek Curved Aerodynamic Fuselage (LatheGeometry sculpted nose-to-tail profile)
         const lathePts = [
@@ -2682,7 +2993,7 @@
       const muzzleTex = createMuzzleStarTexture();
       const muzzleSprites = [];
       [[-2.68, -0.18, -1.95], [2.68, -0.18, -1.95], [0, 0.05, -4.45]].forEach(function (mp) {
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0x3ef4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0x3ef4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, fog: false, depthWrite: false }));
         sp.position.set(mp[0], mp[1], mp[2]);
         sp.scale.set(2.8, 2.8, 1);
         shipGroup.add(sp);
@@ -2719,7 +3030,7 @@
       const fireballTex = createFireballTex(false);
       const smokePlumeTex = createFireballTex(true);
       const shieldUniforms = { uTime: { value: 0 }, uOpacity: { value: 0 }, uImpact: { value: 0 } };
-      const shieldDome = new THREE.Mesh(new THREE.SphereGeometry(3.65, 28, 20), new THREE.ShaderMaterial({ vertexShader: SHIELD_VERT, fragmentShader: SHIELD_FRAG, uniforms: shieldUniforms, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      const shieldDome = new THREE.Mesh(new THREE.SphereGeometry(3.65, 28, 20), new THREE.ShaderMaterial({ vertexShader: SHIELD_VERT, fragmentShader: SHIELD_FRAG, uniforms: shieldUniforms, transparent: true, blending: THREE.AdditiveBlending, fog: false, depthWrite: false, side: THREE.DoubleSide }));
       shieldDome.scale.set(1.15, 0.62, 1.25); shipGroup.add(shieldDome);
 
       // Multi-Layer HDR Beams & Dynamic Muzzle Flash Lighting
@@ -2740,8 +3051,8 @@
       const vfxTrails = [];
       const machRingGeo = sharedGeo(new THREE.TorusGeometry(1.05, 0.11, 8, 22));
       const trailOrbGeo = sharedGeo(new THREE.SphereGeometry(0.28, 8, 6));
-      const ringPool = new MeshPool(function () { return new THREE.Mesh(machRingGeo, new THREE.MeshBasicMaterial({ color: 0x7df9ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })); });
-      const orbPool = new MeshPool(function () { return new THREE.Mesh(trailOrbGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending, depthWrite: false })); });
+      const ringPool = new MeshPool(function () { return new THREE.Mesh(machRingGeo, new THREE.MeshBasicMaterial({ color: 0x7df9ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, fog: false, depthWrite: false })); });
+      const orbPool = new MeshPool(function () { return new THREE.Mesh(trailOrbGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending, fog: false, depthWrite: false })); });
 
       function flashMuzzle(pos, colorHex, intensity, centerOnly) {
         shipMuzzleLight.color.setHex(colorHex);
@@ -2778,8 +3089,8 @@
       const bInGeo = new THREE.CylinderGeometry(0.16, 0.16, 210, 10); bInGeo.rotateX(Math.PI/2);
       const bOutGeo = new THREE.CylinderGeometry(0.52, 0.52, 210, 12); bOutGeo.rotateX(Math.PI/2);
       photonBeamMesh.add(
-        new THREE.Mesh(bInGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending })),
-        new THREE.Mesh(bOutGeo, new THREE.MeshBasicMaterial({ color: 0xb678ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending }))
+        new THREE.Mesh(bInGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, fog: false })),
+        new THREE.Mesh(bOutGeo, new THREE.MeshBasicMaterial({ color: 0xb678ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, fog: false }))
       );
       photonBeamMesh.visible = false; scene.add(photonBeamMesh);
 
@@ -2787,13 +3098,13 @@
       const nCoreGeo = new THREE.CylinderGeometry(1.2, 0.8, 240, 16); nCoreGeo.rotateX(Math.PI/2);
       const nSheathGeo = new THREE.CylinderGeometry(3.4, 2.0, 240, 18); nSheathGeo.rotateX(Math.PI/2);
       novaMesh.add(
-        new THREE.Mesh(nCoreGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending })),
-        new THREE.Mesh(nSheathGeo, new THREE.MeshBasicMaterial({ color: 0x3ef4ff, transparent: true, opacity: 0.62, blending: THREE.AdditiveBlending }))
+        new THREE.Mesh(nCoreGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, fog: false })),
+        new THREE.Mesh(nSheathGeo, new THREE.MeshBasicMaterial({ color: 0x3ef4ff, transparent: true, opacity: 0.62, blending: THREE.AdditiveBlending, fog: false }))
       );
       novaMesh.visible = false; scene.add(novaMesh);
 
       const bossBeamGeo = new THREE.CylinderGeometry(2.2, 3.4, 190, 16); bossBeamGeo.rotateX(Math.PI/2);
-      const bossBeamMesh = new THREE.Mesh(bossBeamGeo, new THREE.MeshBasicMaterial({ color: 0xff2e1f, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending }));
+      const bossBeamMesh = new THREE.Mesh(bossBeamGeo, new THREE.MeshBasicMaterial({ color: 0xff2e1f, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, fog: false }));
       bossBeamMesh.visible = false; scene.add(bossBeamMesh);
 
       // Explosions & Shockwaves（全部池化；燈光從固定燈光池借用）
@@ -2804,11 +3115,11 @@
       const explosionPool = [];
       function buildExplosionRig() {
         const g = new THREE.Group();
-        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0xfff6d6, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0xfff6d6, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, fog: false, depthWrite: false }));
         g.add(core);
         const fireballs = [];
         for (let f = 0; f < 5; f++) {
-          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireballTex, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false }));
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireballTex, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, fog: false, depthWrite: false }));
           g.add(sp); fireballs.push({ sp: sp, vx: 0, vy: 0, baseS: 1, spin: 0 });
         }
         const smokes = [];
@@ -2816,9 +3127,9 @@
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokePlumeTex, transparent: true, opacity: 0.72, depthWrite: false }));
           g.add(sp); smokes.push({ sp: sp, baseS: 1 });
         }
-        const ring = new THREE.Mesh(expRingGeo, new THREE.MeshBasicMaterial({ color: 0xff8c2b, side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const ring = new THREE.Mesh(expRingGeo, new THREE.MeshBasicMaterial({ color: 0xff8c2b, side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, fog: false, depthWrite: false }));
         const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_SPARKS * 3), 3));
-        const sparks = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xffc864, size: 0.85, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const sparks = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xffc864, size: 0.85, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, fog: false, depthWrite: false }));
         sparks.frustumCulled = false;
         g.add(ring, sparks); scene.add(g);
         return { g: g, core: core, fireballs: fireballs, smokes: smokes, ring: ring, sparks: sparks, vArr: new Float32Array(MAX_SPARKS * 3), cnt: 0, slot: null, sc: 1, age: 0, dur: 1 };
@@ -2869,7 +3180,7 @@
         if (ex.slot && ex.slot.owner === ex) { ex.slot.light.intensity = 0; ex.slot.owner = null; }
         ex.slot = null; explosionPool.push(ex);
       }
-      const shockPool = new MeshPool(function () { return new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); });
+      const shockPool = new MeshPool(function () { return new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, fog: false, depthWrite: false })); });
       function spawnShockwave(pos, maxScale, colorHex) {
         const m = shockPool.get();
         m.material.color.setHex(colorHex); m.material.opacity = 0.85; m.scale.setScalar(1);
@@ -3411,7 +3722,7 @@
       }
 
       // Weapons Firing（共用幾何/材質 + 物件池 + 輔助瞄準）
-      function addMat(color, opacity, wire) { return sharedMat(new THREE.MeshBasicMaterial({ color: color, transparent: opacity < 1, opacity: opacity, wireframe: !!wire, blending: THREE.AdditiveBlending, depthWrite: false })); }
+      function addMat(color, opacity, wire) { return sharedMat(new THREE.MeshBasicMaterial({ color: color, transparent: opacity < 1, opacity: opacity, wireframe: !!wire, blending: THREE.AdditiveBlending, fog: false, depthWrite: false })); }
       const boltGeo = sharedGeo(new THREE.CylinderGeometry(0.09, 0.09, 2.8, 8).rotateX(Math.PI/2));
       const pulseGlowGeo = sharedGeo(new THREE.CylinderGeometry(0.24, 0.24, 3.4, 8).rotateX(Math.PI/2));
       const burstGlowGeo = sharedGeo(new THREE.CylinderGeometry(0.22, 0.22, 3.2, 8).rotateX(Math.PI/2));
@@ -3611,14 +3922,17 @@
       function getShot(r, color) {
         const key = r + '_' + color;
         if (!shotPools[key]) {
-          const g = sharedGeo(new THREE.SphereGeometry(r, 8, 6)), m = sharedMat(new THREE.MeshBasicMaterial({ color: color }));
+          const g = sharedGeo(new THREE.SphereGeometry(r, 8, 6)), m = sharedMat(new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
           shotPools[key] = new MeshPool(function () { return new THREE.Mesh(g, m); });
         }
         const pool = shotPools[key], mesh = pool.get();
         return { mesh: mesh, pool: pool };
       }
+      const _wp2 = new THREE.Vector3();
       function fireEnemyShot(r, color, pos, vel, dmg, homing, life) {
         const s = getShot(r, color); s.mesh.position.copy(pos);
+        // 非追蹤彈拉長成曳光彈，朝飛行方向
+        if (!homing) { s.mesh.scale.set(0.85, 0.85, 4.2); _wp2.copy(pos).add(vel); s.mesh.lookAt(_wp2); } else { s.mesh.scale.set(1.2, 1.2, 1.2); s.mesh.rotation.set(0, 0, 0); }
         enemyShots.push({ mesh: s.mesh, pool: s.pool, vel: vel, dmg: dmg, homing: homing, life: life, dodged: false });
       }
 
@@ -3729,6 +4043,7 @@
             ['aimAssist', '輔助瞄準', '子彈自動修正彈道，飛向準星附近最近的敵機'],
             ['voice', '無線電語音', '武器官凱文與指揮官琳以語音通話（需開啟音效）'],
             ['bloom', '泛光特效', '雷射、爆炸與引擎發光 Bloom（效能模式自動關閉）'],
+            ['cinematic', '電影調色', '寫實冷色調、暗角、底片顆粒與鏡頭色散（效能模式自動關閉）'],
             ['autoQuality', '自動畫質', '依即時 FPS 自動調整解析度，維持流暢']
           ].forEach(function (def) {
             const card = document.createElement('div'); card.className = 'card-item';
@@ -3737,7 +4052,7 @@
             b.className = 'hud-btn ' + (on ? 'active' : 'amber'); b.textContent = def[1] + '：' + (on ? '開啟' : '關閉');
             b.addEventListener('click', function () {
               settings[def[0]] = !settings[def[0]]; persistSettings(); vibrate(12);
-              if (def[0] === 'bloom') setupPostFX(TIERS[currentTier]);
+              if (def[0] === 'bloom' || def[0] === 'cinematic') { bloomSuppressed = false; setupPostFX(TIERS[currentTier]); }
               if (def[0] === 'voice' && !settings.voice) radioVoice.stop();
               if (def[0] === 'autoQuality' && !settings.autoQuality) setDpr(Math.min(window.devicePixelRatio || 1, TIERS[currentTier].maxDpr));
               renderHub();
@@ -4164,13 +4479,13 @@
               e.fireCd = e.spec.fcd;
               const toP = shipGroup.position.clone().sub(p).normalize();
               if (e.type === 'DESTROYER') {
-                [-0.22,-0.11,0,0.11,0.22].forEach(function (ang) { fireEnemyShot(0.38, 0xff6b2b, p, toP.clone().applyAxisAngle(YAXIS, ang).multiplyScalar(62), 15, false, 3.4); });
+                [-0.22,-0.11,0,0.11,0.22].forEach(function (ang) { fireEnemyShot(0.38, 0xff8a3a, p, toP.clone().applyAxisAngle(YAXIS, ang).multiplyScalar(62), 15, false, 3.4); });
               } else if (e.type === 'BOMBER') {
                 fireEnemyShot(0.55, 0xffaa2b, p, toP.multiplyScalar(42), 24, true, 4.5);
               } else if (e.type === 'ELITE') {
                 [-0.14,0,0.14].forEach(function (ang) { fireEnemyShot(0.32, 0xff33aa, p, toP.clone().applyAxisAngle(YAXIS, ang).multiplyScalar(80), 14, false, 3.0); });
               } else {
-                fireEnemyShot(0.3, 0xff3b4e, p, toP.multiplyScalar(70), 11, false, 3.0);
+                fireEnemyShot(0.3, 0xff6a2a, p, toP.multiplyScalar(70), 11, false, 3.0);
               }
             }
           }
@@ -4460,6 +4775,7 @@
           else landmarkGroup.rotation.y += dt * 0.012;
         }
         const fwd = 42 * speedMult * dt;
+        updateAtmosphere(dt, fwd);
         if (asteroidMesh) {
           for (let i = 0; i < asteroidData.length; i++) {
             const a = asteroidData[i]; a.pos.z += fwd; if (a.pos.z > 32) a.pos.z = -420;
