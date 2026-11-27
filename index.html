@@ -1464,9 +1464,9 @@
       }
 
       const TIERS = {
-        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.12, bloom: 0.6,  msaa: 4, planetHQ: true,  nebRes: 1024, fogDensity: 0.0019, haze: 14, dockSegs: 7, grade: true },
-        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.1,  bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768,  fogDensity: 0.0019, haze: 9,  dockSegs: 6, grade: true },
-        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.05, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512,  fogDensity: 0.0021, haze: 4,  dockSegs: 5, grade: false }
+        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.12, bloom: 0.6,  msaa: 4, planetHQ: true,  nebRes: 1024, fogDensity: 0.0019, haze: 8, dockSegs: 7, grade: true },
+        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.1,  bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768,  fogDensity: 0.0019, haze: 6,  dockSegs: 6, grade: true },
+        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.05, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512,  fogDensity: 0.0021, haze: 3,  dockSegs: 5, grade: false }
       };
 
       const WEAPONS = {
@@ -2290,14 +2290,17 @@
       }
       function hazeTex() {
         if (_hazeTex) return _hazeTex;
+        // 少量大型柔和雲團（避免細碎斑點），邊緣完全透明
         const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), rng = makeRng(77);
-        for (let i = 0; i < 70; i++) {
-          const ang = rng() * Math.PI * 2, dist = Math.pow(rng(), 0.7) * S * 0.3;
-          const x = S / 2 + Math.cos(ang) * dist, y = S / 2 + Math.sin(ang) * dist * 0.6, r = 18 + rng() * 52;
+        for (let i = 0; i < 9; i++) {
+          const x = S / 2 + (rng() - 0.5) * S * 0.32, y = S / 2 + (rng() - 0.5) * S * 0.16, r = S * (0.2 + rng() * 0.16);
           const rg = g.createRadialGradient(x, y, 0, x, y, r);
-          rg.addColorStop(0, 'rgba(255,255,255,' + (0.05 + rng() * 0.09) + ')'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-          g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
+          rg.addColorStop(0, 'rgba(255,255,255,0.16)'); rg.addColorStop(0.55, 'rgba(255,255,255,0.07)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+          g.fillStyle = rg; g.fillRect(0, 0, S, S);
         }
+        const mask = g.createRadialGradient(S / 2, S / 2, S * 0.2, S / 2, S / 2, S / 2);
+        mask.addColorStop(0, 'rgba(0,0,0,0)'); mask.addColorStop(1, 'rgba(0,0,0,1)');
+        g.globalCompositeOperation = 'destination-out'; g.fillStyle = mask; g.fillRect(0, 0, S, S);
         _hazeTex = new THREE.CanvasTexture(c); return _hazeTex;
       }
 
@@ -2334,7 +2337,7 @@
       // 後處理：Bloom 泛光 + 電影調色（冷色暗部 / 暖色亮部 / 去飽和 / 暗角 / 底片顆粒 / 邊緣色散）
       let composer = null, bloomPass = null, gradePass = null, bloomActive = false, bloomSuppressed = false;
       const GRADE_SHADER = {
-        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uSat: { value: 0.78 }, uContrast: { value: 1.1 }, uLift: { value: new THREE.Vector3(0.008, 0.022, 0.034) }, uGain: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uVignette: { value: 0.42 }, uGrain: { value: 0.03 }, uCA: { value: 1.0 } },
+        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uSat: { value: 0.78 }, uContrast: { value: 1.1 }, uLift: { value: new THREE.Vector3(0.006, 0.016, 0.024) }, uGain: { value: new THREE.Vector3(1.05, 1.0, 0.93) }, uVignette: { value: 0.42 }, uGrain: { value: 0.012 }, uCA: { value: 1.0 } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: [
           'uniform sampler2D tDiffuse; uniform float uTime, uSat, uContrast, uVignette, uGrain, uCA; uniform vec3 uLift, uGain; varying vec2 vUv;',
@@ -2348,7 +2351,8 @@
           '  c += uLift * (1.0 - smoothstep(0.0, 0.55, l));',
           '  c = mix(c, c * uGain, smoothstep(0.35, 1.0, l));',
           '  c *= 1.0 - uVignette * smoothstep(0.08, 0.6, r2 * 1.6);',
-          '  float n = fract(sin(dot(vUv * vec2(1280.0, 720.0) + uTime * 61.7, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;',
+          '  vec3 p3 = fract(vec3(gl_FragCoord.xyx + floor(uTime * 24.0) * 17.0) * 0.1031); p3 += dot(p3, p3.yzx + 33.33);',
+          '  float n = fract((p3.x + p3.y) * p3.z) - 0.5;',
           '  c += n * uGrain;',
           '  gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);',
           '}'
@@ -2743,7 +2747,7 @@
         hazeSprites = [];
         for (let i = 0; i < cfg.haze; i++) {
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: hazeTex(), color: look.haze, transparent: true, opacity: 0.25, depthWrite: false, fog: false }));
-          const h = { sp: sp, base: 0.16 + Math.random() * 0.18, s: 140 + Math.random() * 200 };
+          const h = { sp: sp, base: 0.1 + Math.random() * 0.1, s: 200 + Math.random() * 220 };
           placeHaze(h, -60 - Math.random() * 340);
           sp.material.rotation = Math.random() * 6.28;
           envGroup.add(sp); hazeSprites.push(h);
@@ -2783,11 +2787,11 @@
 
       // 各星域寫實色調（霧色、背景、太陽、雲霧、太空站位置）
       const SECTOR_LOOK = [
-        { fog: 0x1a2433, bg: 0x04070d, sun: [150, 110, -900], sunCol: 0xe4f0ff, haze: 0x6a819c, station: [185, 10, -440], stationRot: 0.4 },
-        { fog: 0x26231f, bg: 0x070605, sun: [-230, 120, -880], sunCol: 0xffe6c4, haze: 0x857a6c, station: [-200, 0, -470], stationRot: -0.5 },
-        { fog: 0x281912, bg: 0x090403, sun: [-190, 140, -900], sunCol: 0xffcf96, haze: 0x82604c, station: [-195, -10, -450], stationRot: 0.9 },
-        { fog: 0x15222a, bg: 0x03070a, sun: [210, 150, -900], sunCol: 0xd4f4ff, haze: 0x55747e, station: [-175, 20, -410], stationRot: -0.2 },
-        { fog: 0x122527, bg: 0x030808, sun: [-220, 115, -900], sunCol: 0xe2fff8, haze: 0x527f7a, station: [215, 10, -470], stationRot: 0.7 }
+        { fog: 0x1a2433, bg: 0x04070d, sun: [150, 110, -900], sunCol: 0xe4f0ff, haze: 0x7d8a9a, station: [185, 10, -440], stationRot: 0.4 },
+        { fog: 0x26231f, bg: 0x070605, sun: [-230, 120, -880], sunCol: 0xffe6c4, haze: 0x868a8e, station: [-200, 0, -470], stationRot: -0.5 },
+        { fog: 0x281912, bg: 0x090403, sun: [-190, 140, -900], sunCol: 0xffcf96, haze: 0x8a8480, station: [-195, -10, -450], stationRot: 0.9 },
+        { fog: 0x15222a, bg: 0x03070a, sun: [210, 150, -900], sunCol: 0xd4f4ff, haze: 0x74848c, station: [-175, 20, -410], stationRot: -0.2 },
+        { fog: 0x122527, bg: 0x030808, sun: [-220, 115, -900], sunCol: 0xe2fff8, haze: 0x74888a, station: [215, 10, -470], stationRot: 0.7 }
       ];
       const DOCK_LEN = 64;
       let hazeSprites = [], dockMesh = null, dockLights = null, dockSegZ = [], dockPieces = [], dockLightList = [];
@@ -3627,7 +3631,7 @@
         if (src) sfx.hit(hadShield ? 'shield' : (weak > 1.2 ? 'weak' : 'hull'));
         state.ult = Math.min(100, state.ult + (e.hp <= 0 ? 10 : 1.4) * (1 + 0.4 * perkLv('ult_charge')));
         if (e.hp <= 0) {
-          spawnExplosion(e.mesh.position, e.type === 'DESTROYER' ? 1.85 : (e.type === 'ELITE' ? 1.5 : 1.0), e.type === 'ELITE' ? 0xff33aa : 0xff8c2b);
+          spawnExplosion(e.mesh.position, e.type === 'DESTROYER' ? 1.85 : (e.type === 'ELITE' ? 1.5 : 1.0), e.type === 'ELITE' ? 0xff6a8a : 0xff8c2b);
           spawnPickup(e.mesh.position, e.spec.cr, e.spec.xp);
           state.combo = Math.min(8.0, +(state.combo + 0.25).toFixed(2)); state.comboTimer = 5.5;
           state.score += Math.round(e.spec.score * state.combo);
@@ -4750,7 +4754,7 @@
             sm.sp.scale.set(ss, ss, 1);
             sm.sp.material.opacity = Math.max(0, (1 - t) * 0.65);
           });
-          ex.ring.scale.setScalar(ex.sc * (1 + t * 6.5)); ex.ring.material.opacity = Math.max(0, 1 - t * 1.1);
+          ex.ring.scale.setScalar(ex.sc * Math.min(4.5, 1 + t * 6.5)); ex.ring.material.opacity = Math.max(0, 0.85 - t * 1.6) * Math.min(1, Math.max(0, (camera.position.distanceTo(ex.g.position) - 12) / 25));
           const arr = ex.sparks.geometry.attributes.position.array;
           for (let j = 0; j < ex.cnt * 3; j++) arr[j] += ex.vArr[j] * dt;
           ex.sparks.geometry.attributes.position.needsUpdate = true; ex.sparks.material.opacity = Math.max(0, 1 - t);
@@ -4758,7 +4762,7 @@
         for (let i = shockwaves.length - 1; i >= 0; i--) {
           const sw = shockwaves[i]; sw.age += dt; const t = sw.age / sw.dur;
           if (t >= 1) { shockPool.put(sw.mesh); shockwaves.splice(i, 1); continue; }
-          sw.mesh.scale.setScalar(1 + t*sw.maxScale); sw.mesh.material.opacity = (1 - t)*0.7;
+          sw.mesh.scale.setScalar(1 + t*sw.maxScale); sw.mesh.material.opacity = (1 - t) * 0.7 * Math.min(1, Math.max(0.15, (camera.position.distanceTo(sw.mesh.position) - sw.mesh.scale.x) / 20 + 0.6));
         }
         for (let i = critPops.length - 1; i >= 0; i--) {
           const cp = critPops[i]; cp.age += realDt;
