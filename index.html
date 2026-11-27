@@ -2751,31 +2751,7 @@
           envGroup.add(sp); hazeSprites.push(h);
         }
 
-        // 兩側船塢結構（Instanced，隨前進循環捲動）
-        const segN = cfg.dockSegs, pieces = [], lights = [];
-        for (let s = 0; s < segN; s++) {
-          [-1, 1].forEach(function (side) {
-            const pz = function () { return (Math.random() - 0.5) * DOCK_LEN; };
-            pieces.push({ seg: s, x: side * 58, y: -26, z: 0, sx: 7, sy: 5, sz: DOCK_LEN * 0.98 });
-            if (Math.random() < 0.5) pieces.push({ seg: s, x: side * 70, y: -2, z: 0, sx: 3, sy: 2.4, sz: DOCK_LEN * 0.98 });
-            pieces.push({ seg: s, x: side * 58, y: -15, z: -DOCK_LEN * 0.45, sx: 3.2, sy: 22, sz: 3.2 });
-            pieces.push({ seg: s, x: side * 52, y: -24.5, z: pz(), sx: 4, sy: 2, sz: 6 + Math.random() * 10 });
-            pieces.push({ seg: s, x: side * 51, y: -21, z: pz(), sx: 12, sy: 1.2, sz: 1.6 });
-            const bh = 8 + Math.random() * 26, bw = 8 + Math.random() * 12;
-            pieces.push({ seg: s, x: side * (74 + Math.random() * 16), y: -29 + bh / 2, z: pz(), sx: bw, sy: bh, sz: 10 + Math.random() * 18 });
-            pieces.push({ seg: s, x: side * (74 + Math.random() * 16), y: -29 + bh + 1, z: pz(), sx: bw * 0.6, sy: 2, sz: 6 + Math.random() * 8 });
-            if (Math.random() < 0.5) pieces.push({ seg: s, x: side * (58 + Math.random() * 10), y: -14 + Math.random() * 10, z: pz(), sx: 6 + Math.random() * 6, sy: 4 + Math.random() * 6, sz: 8 + Math.random() * 12 });
-            if (Math.random() < 0.4) pieces.push({ seg: s, x: side * (70 + Math.random() * 8), y: 8 + Math.random() * 16, z: pz(), sx: 0.7, sy: 18 + Math.random() * 16, sz: 0.7 });
-            for (let k = 0; k < 7; k++) lights.push({ seg: s, x: side * (k < 4 ? 54.4 : 69 + Math.random() * 16), y: k < 4 ? -25 + (k % 2) * 2.4 : -26 + Math.random() * 24, z: pz(), sx: k < 4 ? 0.25 : 0.8, sy: 0.35, sz: k < 4 ? 3 + Math.random() * 5 : 0.8 });
-          });
-        }
-        const M = capitalMaterials();
-        dockMesh = new THREE.InstancedMesh(unitBox, M.dock, pieces.length); dockMesh.frustumCulled = false;
-        dockLights = new THREE.InstancedMesh(unitBox, M.glowCyan, lights.length); dockLights.frustumCulled = false;
-        dockSegZ = []; for (let s = 0; s < segN; s++) dockSegZ.push(20 - s * DOCK_LEN);
-        dockPieces = pieces; dockLightList = lights;
-        envGroup.add(dockMesh, dockLights);
-        updateDock(0);
+        dockMesh = null; dockLights = null; dockPieces = []; dockLightList = []; dockSegZ = [];
 
         // 遠方艦隊交戰：橘色曳光彈與爆閃
         bgTracers = []; bgFlashes = []; bgBattleCd = 0;
