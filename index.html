@@ -4,7 +4,928 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>星隕計畫 PROJECT STARFALL — 繁體中文行動優化版</title>
+  <meta name="theme-color" content="#03050a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="星隕計畫" />
+  <link rel="manifest" id="pwa-manifest" />
+  <link rel="apple-touch-icon" id="pwa-icon" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- three.js r128 examples (MIT License, three.js authors): EffectComposer / RenderPass / ShaderPass / CopyShader / LuminosityHighPassShader / UnrealBloomPass -->
+  <script>
+( function () {
+
+	class EffectComposer {
+
+		constructor( renderer, renderTarget ) {
+
+			this.renderer = renderer;
+
+			if ( renderTarget === undefined ) {
+
+				const parameters = {
+					minFilter: THREE.LinearFilter,
+					magFilter: THREE.LinearFilter,
+					format: THREE.RGBAFormat
+				};
+				const size = renderer.getSize( new THREE.Vector2() );
+				this._pixelRatio = renderer.getPixelRatio();
+				this._width = size.width;
+				this._height = size.height;
+				renderTarget = new THREE.WebGLRenderTarget( this._width * this._pixelRatio, this._height * this._pixelRatio, parameters );
+				renderTarget.texture.name = 'EffectComposer.rt1';
+
+			} else {
+
+				this._pixelRatio = 1;
+				this._width = renderTarget.width;
+				this._height = renderTarget.height;
+
+			}
+
+			this.renderTarget1 = renderTarget;
+			this.renderTarget2 = renderTarget.clone();
+			this.renderTarget2.texture.name = 'EffectComposer.rt2';
+			this.writeBuffer = this.renderTarget1;
+			this.readBuffer = this.renderTarget2;
+			this.renderToScreen = true;
+			this.passes = []; // dependencies
+
+			if ( THREE.CopyShader === undefined ) {
+
+				console.error( 'THREE.EffectComposer relies on THREE.CopyShader' );
+
+			}
+
+			if ( THREE.ShaderPass === undefined ) {
+
+				console.error( 'THREE.EffectComposer relies on THREE.ShaderPass' );
+
+			}
+
+			this.copyPass = new THREE.ShaderPass( THREE.CopyShader );
+			this.clock = new THREE.Clock();
+
+		}
+
+		swapBuffers() {
+
+			const tmp = this.readBuffer;
+			this.readBuffer = this.writeBuffer;
+			this.writeBuffer = tmp;
+
+		}
+
+		addPass( pass ) {
+
+			this.passes.push( pass );
+			pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+		}
+
+		insertPass( pass, index ) {
+
+			this.passes.splice( index, 0, pass );
+			pass.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+		}
+
+		removePass( pass ) {
+
+			const index = this.passes.indexOf( pass );
+
+			if ( index !== - 1 ) {
+
+				this.passes.splice( index, 1 );
+
+			}
+
+		}
+
+		isLastEnabledPass( passIndex ) {
+
+			for ( let i = passIndex + 1; i < this.passes.length; i ++ ) {
+
+				if ( this.passes[ i ].enabled ) {
+
+					return false;
+
+				}
+
+			}
+
+			return true;
+
+		}
+
+		render( deltaTime ) {
+
+			// deltaTime value is in seconds
+			if ( deltaTime === undefined ) {
+
+				deltaTime = this.clock.getDelta();
+
+			}
+
+			const currentRenderTarget = this.renderer.getRenderTarget();
+			let maskActive = false;
+
+			for ( let i = 0, il = this.passes.length; i < il; i ++ ) {
+
+				const pass = this.passes[ i ];
+				if ( pass.enabled === false ) continue;
+				pass.renderToScreen = this.renderToScreen && this.isLastEnabledPass( i );
+				pass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime, maskActive );
+
+				if ( pass.needsSwap ) {
+
+					if ( maskActive ) {
+
+						const context = this.renderer.getContext();
+						const stencil = this.renderer.state.buffers.stencil; //context.stencilFunc( context.NOTEQUAL, 1, 0xffffffff );
+
+						stencil.setFunc( context.NOTEQUAL, 1, 0xffffffff );
+						this.copyPass.render( this.renderer, this.writeBuffer, this.readBuffer, deltaTime ); //context.stencilFunc( context.EQUAL, 1, 0xffffffff );
+
+						stencil.setFunc( context.EQUAL, 1, 0xffffffff );
+
+					}
+
+					this.swapBuffers();
+
+				}
+
+				if ( THREE.MaskPass !== undefined ) {
+
+					if ( pass instanceof THREE.MaskPass ) {
+
+						maskActive = true;
+
+					} else if ( pass instanceof THREE.ClearMaskPass ) {
+
+						maskActive = false;
+
+					}
+
+				}
+
+			}
+
+			this.renderer.setRenderTarget( currentRenderTarget );
+
+		}
+
+		reset( renderTarget ) {
+
+			if ( renderTarget === undefined ) {
+
+				const size = this.renderer.getSize( new THREE.Vector2() );
+				this._pixelRatio = this.renderer.getPixelRatio();
+				this._width = size.width;
+				this._height = size.height;
+				renderTarget = this.renderTarget1.clone();
+				renderTarget.setSize( this._width * this._pixelRatio, this._height * this._pixelRatio );
+
+			}
+
+			this.renderTarget1.dispose();
+			this.renderTarget2.dispose();
+			this.renderTarget1 = renderTarget;
+			this.renderTarget2 = renderTarget.clone();
+			this.writeBuffer = this.renderTarget1;
+			this.readBuffer = this.renderTarget2;
+
+		}
+
+		setSize( width, height ) {
+
+			this._width = width;
+			this._height = height;
+			const effectiveWidth = this._width * this._pixelRatio;
+			const effectiveHeight = this._height * this._pixelRatio;
+			this.renderTarget1.setSize( effectiveWidth, effectiveHeight );
+			this.renderTarget2.setSize( effectiveWidth, effectiveHeight );
+
+			for ( let i = 0; i < this.passes.length; i ++ ) {
+
+				this.passes[ i ].setSize( effectiveWidth, effectiveHeight );
+
+			}
+
+		}
+
+		setPixelRatio( pixelRatio ) {
+
+			this._pixelRatio = pixelRatio;
+			this.setSize( this._width, this._height );
+
+		}
+
+	}
+
+	class Pass {
+
+		constructor() {
+
+			// if set to true, the pass is processed by the composer
+			this.enabled = true; // if set to true, the pass indicates to swap read and write buffer after rendering
+
+			this.needsSwap = true; // if set to true, the pass clears its buffer before rendering
+
+			this.clear = false; // if set to true, the result of the pass is rendered to screen. This is set automatically by EffectComposer.
+
+			this.renderToScreen = false;
+
+		}
+
+		setSize( ) {}
+
+		render( ) {
+
+			console.error( 'THREE.Pass: .render() must be implemented in derived pass.' );
+
+		}
+
+	} // Helper for passes that need to fill the viewport with a single quad.
+
+
+	const _camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 ); // https://github.com/mrdoob/three.js/pull/21358
+
+
+	const _geometry = new THREE.BufferGeometry();
+
+	_geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ - 1, 3, 0, - 1, - 1, 0, 3, - 1, 0 ], 3 ) );
+
+	_geometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( [ 0, 2, 0, 0, 2, 0 ], 2 ) );
+
+	class FullScreenQuad {
+
+		constructor( material ) {
+
+			this._mesh = new THREE.Mesh( _geometry, material );
+
+		}
+
+		dispose() {
+
+			this._mesh.geometry.dispose();
+
+		}
+
+		render( renderer ) {
+
+			renderer.render( this._mesh, _camera );
+
+		}
+
+		get material() {
+
+			return this._mesh.material;
+
+		}
+
+		set material( value ) {
+
+			this._mesh.material = value;
+
+		}
+
+	}
+
+	THREE.EffectComposer = EffectComposer;
+	THREE.FullScreenQuad = FullScreenQuad;
+	THREE.Pass = Pass;
+
+} )();
+
+( function () {
+
+	class RenderPass extends THREE.Pass {
+
+		constructor( scene, camera, overrideMaterial, clearColor, clearAlpha ) {
+
+			super();
+			this.scene = scene;
+			this.camera = camera;
+			this.overrideMaterial = overrideMaterial;
+			this.clearColor = clearColor;
+			this.clearAlpha = clearAlpha !== undefined ? clearAlpha : 0;
+			this.clear = true;
+			this.clearDepth = false;
+			this.needsSwap = false;
+			this._oldClearColor = new THREE.Color();
+
+		}
+
+		render( renderer, writeBuffer, readBuffer
+			/*, deltaTime, maskActive */
+		) {
+
+			const oldAutoClear = renderer.autoClear;
+			renderer.autoClear = false;
+			let oldClearAlpha, oldOverrideMaterial;
+
+			if ( this.overrideMaterial !== undefined ) {
+
+				oldOverrideMaterial = this.scene.overrideMaterial;
+				this.scene.overrideMaterial = this.overrideMaterial;
+
+			}
+
+			if ( this.clearColor ) {
+
+				renderer.getClearColor( this._oldClearColor );
+				oldClearAlpha = renderer.getClearAlpha();
+				renderer.setClearColor( this.clearColor, this.clearAlpha );
+
+			}
+
+			if ( this.clearDepth ) {
+
+				renderer.clearDepth();
+
+			}
+
+			renderer.setRenderTarget( this.renderToScreen ? null : readBuffer ); // TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
+
+			if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
+			renderer.render( this.scene, this.camera );
+
+			if ( this.clearColor ) {
+
+				renderer.setClearColor( this._oldClearColor, oldClearAlpha );
+
+			}
+
+			if ( this.overrideMaterial !== undefined ) {
+
+				this.scene.overrideMaterial = oldOverrideMaterial;
+
+			}
+
+			renderer.autoClear = oldAutoClear;
+
+		}
+
+	}
+
+	THREE.RenderPass = RenderPass;
+
+} )();
+
+( function () {
+
+	class ShaderPass extends THREE.Pass {
+
+		constructor( shader, textureID ) {
+
+			super();
+			this.textureID = textureID !== undefined ? textureID : 'tDiffuse';
+
+			if ( shader instanceof THREE.ShaderMaterial ) {
+
+				this.uniforms = shader.uniforms;
+				this.material = shader;
+
+			} else if ( shader ) {
+
+				this.uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+				this.material = new THREE.ShaderMaterial( {
+					defines: Object.assign( {}, shader.defines ),
+					uniforms: this.uniforms,
+					vertexShader: shader.vertexShader,
+					fragmentShader: shader.fragmentShader
+				} );
+
+			}
+
+			this.fsQuad = new THREE.FullScreenQuad( this.material );
+
+		}
+
+		render( renderer, writeBuffer, readBuffer
+			/*, deltaTime, maskActive */
+		) {
+
+			if ( this.uniforms[ this.textureID ] ) {
+
+				this.uniforms[ this.textureID ].value = readBuffer.texture;
+
+			}
+
+			this.fsQuad.material = this.material;
+
+			if ( this.renderToScreen ) {
+
+				renderer.setRenderTarget( null );
+				this.fsQuad.render( renderer );
+
+			} else {
+
+				renderer.setRenderTarget( writeBuffer ); // TODO: Avoid using autoClear properties, see https://github.com/mrdoob/three.js/pull/15571#issuecomment-465669600
+
+				if ( this.clear ) renderer.clear( renderer.autoClearColor, renderer.autoClearDepth, renderer.autoClearStencil );
+				this.fsQuad.render( renderer );
+
+			}
+
+		}
+
+	}
+
+	THREE.ShaderPass = ShaderPass;
+
+} )();
+
+( function () {
+
+	/**
+ * Full-screen textured quad shader
+ */
+	var CopyShader = {
+		uniforms: {
+			'tDiffuse': {
+				value: null
+			},
+			'opacity': {
+				value: 1.0
+			}
+		},
+		vertexShader:
+  /* glsl */
+  `
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+		fragmentShader:
+  /* glsl */
+  `
+
+		uniform float opacity;
+
+		uniform sampler2D tDiffuse;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vec4 texel = texture2D( tDiffuse, vUv );
+			gl_FragColor = opacity * texel;
+
+		}`
+	};
+
+	THREE.CopyShader = CopyShader;
+
+} )();
+
+( function () {
+
+	/**
+ * Luminosity
+ * http://en.wikipedia.org/wiki/Luminosity
+ */
+
+	const LuminosityHighPassShader = {
+		shaderID: 'luminosityHighPass',
+		uniforms: {
+			'tDiffuse': {
+				value: null
+			},
+			'luminosityThreshold': {
+				value: 1.0
+			},
+			'smoothWidth': {
+				value: 1.0
+			},
+			'defaultColor': {
+				value: new THREE.Color( 0x000000 )
+			},
+			'defaultOpacity': {
+				value: 0.0
+			}
+		},
+		vertexShader:
+  /* glsl */
+  `
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+		fragmentShader:
+  /* glsl */
+  `
+
+		uniform sampler2D tDiffuse;
+		uniform vec3 defaultColor;
+		uniform float defaultOpacity;
+		uniform float luminosityThreshold;
+		uniform float smoothWidth;
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vec4 texel = texture2D( tDiffuse, vUv );
+
+			vec3 luma = vec3( 0.299, 0.587, 0.114 );
+
+			float v = dot( texel.xyz, luma );
+
+			vec4 outputColor = vec4( defaultColor.rgb, defaultOpacity );
+
+			float alpha = smoothstep( luminosityThreshold, luminosityThreshold + smoothWidth, v );
+
+			gl_FragColor = mix( outputColor, texel, alpha );
+
+		}`
+	};
+
+	THREE.LuminosityHighPassShader = LuminosityHighPassShader;
+
+} )();
+
+( function () {
+
+	/**
+ * UnrealBloomPass is inspired by the bloom pass of Unreal Engine. It creates a
+ * mip map chain of bloom textures and blurs them with different radii. Because
+ * of the weighted combination of mips, and because larger blurs are done on
+ * higher mips, this effect provides good quality and performance.
+ *
+ * Reference:
+ * - https://docs.unrealengine.com/latest/INT/Engine/Rendering/PostProcessEffects/Bloom/
+ */
+
+	class UnrealBloomPass extends THREE.Pass {
+
+		constructor( resolution, strength, radius, threshold ) {
+
+			super();
+			this.strength = strength !== undefined ? strength : 1;
+			this.radius = radius;
+			this.threshold = threshold;
+			this.resolution = resolution !== undefined ? new THREE.Vector2( resolution.x, resolution.y ) : new THREE.Vector2( 256, 256 ); // create color only once here, reuse it later inside the render function
+
+			this.clearColor = new THREE.Color( 0, 0, 0 ); // render targets
+
+			const pars = {
+				minFilter: THREE.LinearFilter,
+				magFilter: THREE.LinearFilter,
+				format: THREE.RGBAFormat
+			};
+			this.renderTargetsHorizontal = [];
+			this.renderTargetsVertical = [];
+			this.nMips = 5;
+			let resx = Math.round( this.resolution.x / 2 );
+			let resy = Math.round( this.resolution.y / 2 );
+			this.renderTargetBright = new THREE.WebGLRenderTarget( resx, resy, pars );
+			this.renderTargetBright.texture.name = 'UnrealBloomPass.bright';
+			this.renderTargetBright.texture.generateMipmaps = false;
+
+			for ( let i = 0; i < this.nMips; i ++ ) {
+
+				const renderTargetHorizonal = new THREE.WebGLRenderTarget( resx, resy, pars );
+				renderTargetHorizonal.texture.name = 'UnrealBloomPass.h' + i;
+				renderTargetHorizonal.texture.generateMipmaps = false;
+				this.renderTargetsHorizontal.push( renderTargetHorizonal );
+				const renderTargetVertical = new THREE.WebGLRenderTarget( resx, resy, pars );
+				renderTargetVertical.texture.name = 'UnrealBloomPass.v' + i;
+				renderTargetVertical.texture.generateMipmaps = false;
+				this.renderTargetsVertical.push( renderTargetVertical );
+				resx = Math.round( resx / 2 );
+				resy = Math.round( resy / 2 );
+
+			} // luminosity high pass material
+
+
+			if ( THREE.LuminosityHighPassShader === undefined ) console.error( 'THREE.UnrealBloomPass relies on THREE.LuminosityHighPassShader' );
+			const highPassShader = THREE.LuminosityHighPassShader;
+			this.highPassUniforms = THREE.UniformsUtils.clone( highPassShader.uniforms );
+			this.highPassUniforms[ 'luminosityThreshold' ].value = threshold;
+			this.highPassUniforms[ 'smoothWidth' ].value = 0.01;
+			this.materialHighPassFilter = new THREE.ShaderMaterial( {
+				uniforms: this.highPassUniforms,
+				vertexShader: highPassShader.vertexShader,
+				fragmentShader: highPassShader.fragmentShader,
+				defines: {}
+			} ); // Gaussian Blur Materials
+
+			this.separableBlurMaterials = [];
+			const kernelSizeArray = [ 3, 5, 7, 9, 11 ];
+			resx = Math.round( this.resolution.x / 2 );
+			resy = Math.round( this.resolution.y / 2 );
+
+			for ( let i = 0; i < this.nMips; i ++ ) {
+
+				this.separableBlurMaterials.push( this.getSeperableBlurMaterial( kernelSizeArray[ i ] ) );
+				this.separableBlurMaterials[ i ].uniforms[ 'texSize' ].value = new THREE.Vector2( resx, resy );
+				resx = Math.round( resx / 2 );
+				resy = Math.round( resy / 2 );
+
+			} // Composite material
+
+
+			this.compositeMaterial = this.getCompositeMaterial( this.nMips );
+			this.compositeMaterial.uniforms[ 'blurTexture1' ].value = this.renderTargetsVertical[ 0 ].texture;
+			this.compositeMaterial.uniforms[ 'blurTexture2' ].value = this.renderTargetsVertical[ 1 ].texture;
+			this.compositeMaterial.uniforms[ 'blurTexture3' ].value = this.renderTargetsVertical[ 2 ].texture;
+			this.compositeMaterial.uniforms[ 'blurTexture4' ].value = this.renderTargetsVertical[ 3 ].texture;
+			this.compositeMaterial.uniforms[ 'blurTexture5' ].value = this.renderTargetsVertical[ 4 ].texture;
+			this.compositeMaterial.uniforms[ 'bloomStrength' ].value = strength;
+			this.compositeMaterial.uniforms[ 'bloomRadius' ].value = 0.1;
+			this.compositeMaterial.needsUpdate = true;
+			const bloomFactors = [ 1.0, 0.8, 0.6, 0.4, 0.2 ];
+			this.compositeMaterial.uniforms[ 'bloomFactors' ].value = bloomFactors;
+			this.bloomTintColors = [ new THREE.Vector3( 1, 1, 1 ), new THREE.Vector3( 1, 1, 1 ), new THREE.Vector3( 1, 1, 1 ), new THREE.Vector3( 1, 1, 1 ), new THREE.Vector3( 1, 1, 1 ) ];
+			this.compositeMaterial.uniforms[ 'bloomTintColors' ].value = this.bloomTintColors; // copy material
+
+			if ( THREE.CopyShader === undefined ) {
+
+				console.error( 'THREE.UnrealBloomPass relies on THREE.CopyShader' );
+
+			}
+
+			const copyShader = THREE.CopyShader;
+			this.copyUniforms = THREE.UniformsUtils.clone( copyShader.uniforms );
+			this.copyUniforms[ 'opacity' ].value = 1.0;
+			this.materialCopy = new THREE.ShaderMaterial( {
+				uniforms: this.copyUniforms,
+				vertexShader: copyShader.vertexShader,
+				fragmentShader: copyShader.fragmentShader,
+				blending: THREE.AdditiveBlending,
+				depthTest: false,
+				depthWrite: false,
+				transparent: true
+			} );
+			this.enabled = true;
+			this.needsSwap = false;
+			this._oldClearColor = new THREE.Color();
+			this.oldClearAlpha = 1;
+			this.basic = new THREE.MeshBasicMaterial();
+			this.fsQuad = new THREE.FullScreenQuad( null );
+
+		}
+
+		dispose() {
+
+			for ( let i = 0; i < this.renderTargetsHorizontal.length; i ++ ) {
+
+				this.renderTargetsHorizontal[ i ].dispose();
+
+			}
+
+			for ( let i = 0; i < this.renderTargetsVertical.length; i ++ ) {
+
+				this.renderTargetsVertical[ i ].dispose();
+
+			}
+
+			this.renderTargetBright.dispose();
+
+		}
+
+		setSize( width, height ) {
+
+			let resx = Math.round( width / 2 );
+			let resy = Math.round( height / 2 );
+			this.renderTargetBright.setSize( resx, resy );
+
+			for ( let i = 0; i < this.nMips; i ++ ) {
+
+				this.renderTargetsHorizontal[ i ].setSize( resx, resy );
+				this.renderTargetsVertical[ i ].setSize( resx, resy );
+				this.separableBlurMaterials[ i ].uniforms[ 'texSize' ].value = new THREE.Vector2( resx, resy );
+				resx = Math.round( resx / 2 );
+				resy = Math.round( resy / 2 );
+
+			}
+
+		}
+
+		render( renderer, writeBuffer, readBuffer, deltaTime, maskActive ) {
+
+			renderer.getClearColor( this._oldClearColor );
+			this.oldClearAlpha = renderer.getClearAlpha();
+			const oldAutoClear = renderer.autoClear;
+			renderer.autoClear = false;
+			renderer.setClearColor( this.clearColor, 0 );
+			if ( maskActive ) renderer.state.buffers.stencil.setTest( false ); // Render input to screen
+
+			if ( this.renderToScreen ) {
+
+				this.fsQuad.material = this.basic;
+				this.basic.map = readBuffer.texture;
+				renderer.setRenderTarget( null );
+				renderer.clear();
+				this.fsQuad.render( renderer );
+
+			} // 1. Extract Bright Areas
+
+
+			this.highPassUniforms[ 'tDiffuse' ].value = readBuffer.texture;
+			this.highPassUniforms[ 'luminosityThreshold' ].value = this.threshold;
+			this.fsQuad.material = this.materialHighPassFilter;
+			renderer.setRenderTarget( this.renderTargetBright );
+			renderer.clear();
+			this.fsQuad.render( renderer ); // 2. Blur All the mips progressively
+
+			let inputRenderTarget = this.renderTargetBright;
+
+			for ( let i = 0; i < this.nMips; i ++ ) {
+
+				this.fsQuad.material = this.separableBlurMaterials[ i ];
+				this.separableBlurMaterials[ i ].uniforms[ 'colorTexture' ].value = inputRenderTarget.texture;
+				this.separableBlurMaterials[ i ].uniforms[ 'direction' ].value = UnrealBloomPass.BlurDirectionX;
+				renderer.setRenderTarget( this.renderTargetsHorizontal[ i ] );
+				renderer.clear();
+				this.fsQuad.render( renderer );
+				this.separableBlurMaterials[ i ].uniforms[ 'colorTexture' ].value = this.renderTargetsHorizontal[ i ].texture;
+				this.separableBlurMaterials[ i ].uniforms[ 'direction' ].value = UnrealBloomPass.BlurDirectionY;
+				renderer.setRenderTarget( this.renderTargetsVertical[ i ] );
+				renderer.clear();
+				this.fsQuad.render( renderer );
+				inputRenderTarget = this.renderTargetsVertical[ i ];
+
+			} // Composite All the mips
+
+
+			this.fsQuad.material = this.compositeMaterial;
+			this.compositeMaterial.uniforms[ 'bloomStrength' ].value = this.strength;
+			this.compositeMaterial.uniforms[ 'bloomRadius' ].value = this.radius;
+			this.compositeMaterial.uniforms[ 'bloomTintColors' ].value = this.bloomTintColors;
+			renderer.setRenderTarget( this.renderTargetsHorizontal[ 0 ] );
+			renderer.clear();
+			this.fsQuad.render( renderer ); // Blend it additively over the input texture
+
+			this.fsQuad.material = this.materialCopy;
+			this.copyUniforms[ 'tDiffuse' ].value = this.renderTargetsHorizontal[ 0 ].texture;
+			if ( maskActive ) renderer.state.buffers.stencil.setTest( true );
+
+			if ( this.renderToScreen ) {
+
+				renderer.setRenderTarget( null );
+				this.fsQuad.render( renderer );
+
+			} else {
+
+				renderer.setRenderTarget( readBuffer );
+				this.fsQuad.render( renderer );
+
+			} // Restore renderer settings
+
+
+			renderer.setClearColor( this._oldClearColor, this.oldClearAlpha );
+			renderer.autoClear = oldAutoClear;
+
+		}
+
+		getSeperableBlurMaterial( kernelRadius ) {
+
+			return new THREE.ShaderMaterial( {
+				defines: {
+					'KERNEL_RADIUS': kernelRadius,
+					'SIGMA': kernelRadius
+				},
+				uniforms: {
+					'colorTexture': {
+						value: null
+					},
+					'texSize': {
+						value: new THREE.Vector2( 0.5, 0.5 )
+					},
+					'direction': {
+						value: new THREE.Vector2( 0.5, 0.5 )
+					}
+				},
+				vertexShader: `varying vec2 vUv;
+				void main() {
+					vUv = uv;
+					gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+				}`,
+				fragmentShader: `#include <common>
+				varying vec2 vUv;
+				uniform sampler2D colorTexture;
+				uniform vec2 texSize;
+				uniform vec2 direction;
+
+				float gaussianPdf(in float x, in float sigma) {
+					return 0.39894 * exp( -0.5 * x * x/( sigma * sigma))/sigma;
+				}
+				void main() {
+					vec2 invSize = 1.0 / texSize;
+					float fSigma = float(SIGMA);
+					float weightSum = gaussianPdf(0.0, fSigma);
+					vec3 diffuseSum = texture2D( colorTexture, vUv).rgb * weightSum;
+					for( int i = 1; i < KERNEL_RADIUS; i ++ ) {
+						float x = float(i);
+						float w = gaussianPdf(x, fSigma);
+						vec2 uvOffset = direction * invSize * x;
+						vec3 sample1 = texture2D( colorTexture, vUv + uvOffset).rgb;
+						vec3 sample2 = texture2D( colorTexture, vUv - uvOffset).rgb;
+						diffuseSum += (sample1 + sample2) * w;
+						weightSum += 2.0 * w;
+					}
+					gl_FragColor = vec4(diffuseSum/weightSum, 1.0);
+				}`
+			} );
+
+		}
+
+		getCompositeMaterial( nMips ) {
+
+			return new THREE.ShaderMaterial( {
+				defines: {
+					'NUM_MIPS': nMips
+				},
+				uniforms: {
+					'blurTexture1': {
+						value: null
+					},
+					'blurTexture2': {
+						value: null
+					},
+					'blurTexture3': {
+						value: null
+					},
+					'blurTexture4': {
+						value: null
+					},
+					'blurTexture5': {
+						value: null
+					},
+					'dirtTexture': {
+						value: null
+					},
+					'bloomStrength': {
+						value: 1.0
+					},
+					'bloomFactors': {
+						value: null
+					},
+					'bloomTintColors': {
+						value: null
+					},
+					'bloomRadius': {
+						value: 0.0
+					}
+				},
+				vertexShader: `varying vec2 vUv;
+				void main() {
+					vUv = uv;
+					gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+				}`,
+				fragmentShader: `varying vec2 vUv;
+				uniform sampler2D blurTexture1;
+				uniform sampler2D blurTexture2;
+				uniform sampler2D blurTexture3;
+				uniform sampler2D blurTexture4;
+				uniform sampler2D blurTexture5;
+				uniform sampler2D dirtTexture;
+				uniform float bloomStrength;
+				uniform float bloomRadius;
+				uniform float bloomFactors[NUM_MIPS];
+				uniform vec3 bloomTintColors[NUM_MIPS];
+
+				float lerpBloomFactor(const in float factor) {
+					float mirrorFactor = 1.2 - factor;
+					return mix(factor, mirrorFactor, bloomRadius);
+				}
+
+				void main() {
+					gl_FragColor = bloomStrength * ( lerpBloomFactor(bloomFactors[0]) * vec4(bloomTintColors[0], 1.0) * texture2D(blurTexture1, vUv) +
+						lerpBloomFactor(bloomFactors[1]) * vec4(bloomTintColors[1], 1.0) * texture2D(blurTexture2, vUv) +
+						lerpBloomFactor(bloomFactors[2]) * vec4(bloomTintColors[2], 1.0) * texture2D(blurTexture3, vUv) +
+						lerpBloomFactor(bloomFactors[3]) * vec4(bloomTintColors[3], 1.0) * texture2D(blurTexture4, vUv) +
+						lerpBloomFactor(bloomFactors[4]) * vec4(bloomTintColors[4], 1.0) * texture2D(blurTexture5, vUv) );
+				}`
+			} );
+
+		}
+
+	}
+
+	UnrealBloomPass.BlurDirectionX = new THREE.Vector2( 1.0, 0.0 );
+	UnrealBloomPass.BlurDirectionY = new THREE.Vector2( 0.0, 1.0 );
+
+	THREE.UnrealBloomPass = UnrealBloomPass;
+
+} )();
+
+  </script>
   <style>
     :root {
       --bg: #03050a;
@@ -244,6 +1165,69 @@
     #comms-box.hq .comms-speaker { color: var(--amber); }
     .comms-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
     .comms-text { font-size: 10.5px; color: #e8f6ff; line-height: 1.38; margin-top: 2px; }
+    .comms-wave { display: inline-flex; gap: 2px; align-items: flex-end; height: 9px; margin-left: 4px; }
+    .comms-wave i { width: 2px; background: currentColor; height: 3px; border-radius: 1px; opacity: 0.85; }
+    #comms-box.talking .comms-wave i { animation: cwave 0.42s ease-in-out infinite; }
+    #comms-box.talking .comms-wave i:nth-child(2) { animation-delay: 0.08s; }
+    #comms-box.talking .comms-wave i:nth-child(3) { animation-delay: 0.16s; }
+    #comms-box.talking .comms-wave i:nth-child(4) { animation-delay: 0.24s; }
+    @keyframes cwave { 0%,100% { height: 3px; } 50% { height: 9px; } }
+
+    /* v2: lock boxes positioned with transform (GPU compositing, no layout) */
+    .lock-box { left: 0; top: 0; will-change: transform; }
+    .lock-tag .weak { color: var(--green); }
+    .tactile-btn.roll-btn { width: 46px; height: 46px; border-color: var(--violet); color: #e6d2ff; background: radial-gradient(circle, rgba(182,120,255,0.20), rgba(16,8,26,0.72)); font-size: 9px; }
+    .tactile-btn.roll-btn.cooling { opacity: 0.45; }
+    .arsenal-dock { max-width: calc(100vw - 368px); }
+    @media (max-height: 460px), (max-width: 760px) {
+      .tactile-btn.roll-btn { width: 40px; height: 40px; font-size: 8.5px; }
+      .arsenal-dock { max-width: calc(100vw - 305px); }
+    }
+
+    /* 主動散熱 Active Vent */
+    #vent-ui {
+      position: fixed; left: 50%; top: calc(47% + 34px); transform: translateX(-50%);
+      width: 178px; z-index: 12; pointer-events: none; display: none; text-align: center;
+      background: rgba(20, 6, 10, 0.72); border: 1px solid rgba(255,59,78,0.55); border-radius: 6px; padding: 5px 8px 7px;
+    }
+    #vent-ui.show { display: block; }
+    .vent-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; color: #ffb7a0; margin-bottom: 3px; text-shadow: 0 0 6px #000; }
+    .vent-track { position: relative; height: 8px; background: rgba(255,59,78,0.25); border: 1px solid rgba(255,59,78,0.75); border-radius: 3px; }
+    .vent-zone { position: absolute; top: 0; bottom: 0; left: 58%; width: 16%; background: rgba(78,255,168,0.75); box-shadow: 0 0 8px rgba(78,255,168,0.8); }
+    .vent-needle { position: absolute; top: -3px; bottom: -3px; width: 3px; left: 0; background: #fff; box-shadow: 0 0 6px #fff; }
+    #vent-ui.missed .vent-track { border-color: #666; background: rgba(80,80,80,0.3); }
+
+    /* 強化卡 Perk Cards */
+    #perk-overlay { z-index: 36; }
+    .perk-wrap { width: min(720px, 100%); text-align: center; }
+    .perk-head { font-size: 14px; font-weight: 800; letter-spacing: 0.16em; color: var(--cyan); }
+    .perk-sub { font-size: 10.5px; color: var(--muted); margin: 4px 0 12px; }
+    .perk-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .perk-card {
+      flex: 1 1 180px; max-width: 220px; min-height: 120px; cursor: pointer; text-align: left;
+      background: linear-gradient(160deg, rgba(18,34,52,0.95), rgba(8,14,24,0.95));
+      border: 1px solid rgba(44,232,255,0.35); border-radius: 8px; padding: 12px; color: var(--text);
+      display: flex; flex-direction: column; gap: 6px; transition: transform 0.12s, border-color 0.12s;
+    }
+    .perk-card:hover, .perk-card:active { transform: translateY(-3px); border-color: var(--amber); }
+    .perk-card .pk-cat { font-size: 8.5px; font-weight: 800; letter-spacing: 0.12em; }
+    .perk-card .pk-name { font-size: 13px; font-weight: 800; color: #fff; }
+    .perk-card .pk-desc { font-size: 10.5px; color: #b9cfe0; line-height: 1.45; }
+    .perk-card .pk-key { margin-top: auto; font-size: 9px; color: var(--muted); }
+    .perk-list { font-size: 9px; color: var(--green); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* iOS 等無震動裝置的視覺觸覺回饋 */
+    #haptic-pulse {
+      position: fixed; inset: 0; z-index: 9; pointer-events: none; opacity: 0;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55), inset 0 0 38px rgba(44,232,255,0.35);
+    }
+    #haptic-pulse.hit { animation: hpulse 0.16s ease-out; }
+    @keyframes hpulse { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+    #pause-overlay { z-index: 45; flex-direction: column; gap: 10px; cursor: pointer; }
+    #pause-overlay .brand-title { font-size: 16px; }
+    .sector-event { font-size: 9px; color: #ffcf8a; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: none; }
+    .sector-event.show { display: block; }
   </style>
 </head>
 <body>
@@ -256,7 +1240,9 @@
   <div class="reticle" id="reticle"></div>
   <div class="warning-banner" id="warning-banner">警告 // 偵測到大型旗艦訊號</div>
   <div class="toast-box" id="toast-box"></div>
-  <div id="comms-box"><div class="comms-speaker"><span class="comms-dot"></span><span id="comms-who">後座武器官・凱文</span></div><div class="comms-text" id="comms-msg">系統上線！</div></div>
+  <div id="haptic-pulse"></div>
+  <div id="vent-ui"><div class="vent-label" id="vent-label">過熱！在綠區按射擊 主動散熱</div><div class="vent-track"><div class="vent-zone" id="vent-zone"></div><div class="vent-needle" id="vent-needle"></div></div></div>
+  <div id="comms-box"><div class="comms-speaker"><span class="comms-dot"></span><span id="comms-who">後座武器官・凱文</span><span class="comms-wave"><i></i><i></i><i></i><i></i></span></div><div class="comms-text" id="comms-msg">系統上線！</div></div>
 
   <div class="hud-layer">
     <div class="top-bar">
@@ -276,6 +1262,8 @@
         <div class="wave-title" id="wave-title">第 1/5 波 // 艦隊殲滅戰</div>
         <div class="score-num" id="score-val">000,000</div>
         <div class="reward-row" id="reward-row">信用點 600 • 連擊 x1.0</div>
+        <div class="perk-list" id="perk-list"></div>
+        <div class="sector-event" id="sector-event"></div>
         <div class="boss-bar-wrap" id="boss-bar-wrap">
           <div class="boss-name" id="boss-name">星界利維坦</div>
           <div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div>
@@ -285,7 +1273,7 @@
 
       <div class="panel controls-cluster">
         <button class="hud-btn active" id="open-hub-btn">戰役 / 機庫</button>
-        <button class="hud-btn crimson" id="skip-boss-btn">頭目戰</button>
+        <button class="hud-btn crimson" id="skip-boss-btn" style="display:none">頭目戰</button>
         <button class="hud-btn amber" id="audio-btn">靜音</button>
       </div>
     </div>
@@ -316,6 +1304,7 @@
 
       <div class="action-pad">
         <button class="tactile-btn" id="shield-btn">護盾</button>
+        <button class="tactile-btn roll-btn" id="roll-btn">翻滾</button>
         <button class="tactile-btn boost-btn" id="boost-btn">加速</button>
         <button class="tactile-btn fire-btn" id="fire-btn">射擊</button>
       </div>
@@ -342,6 +1331,21 @@
     </div>
   </div>
 
+  <!-- 波次強化卡 -->
+  <div class="modal-overlay" id="perk-overlay">
+    <div class="perk-wrap">
+      <div class="perk-head" id="perk-head">波次清除 // 選擇一項戰術強化</div>
+      <div class="perk-sub">強化效果持續至本次出擊結束，可重複疊加（按 1 / 2 / 3 快速選擇）</div>
+      <div class="perk-row" id="perk-row"></div>
+    </div>
+  </div>
+
+  <!-- 背景暫停 -->
+  <div class="modal-overlay" id="pause-overlay">
+    <div class="brand-title">戰鬥已暫停</div>
+    <div style="font-size:11px;color:var(--muted);">點擊畫面任一處繼續</div>
+  </div>
+
   <!-- 任務結算視窗 -->
   <div class="modal-overlay" id="end-overlay">
     <div class="panel" style="text-align:center;padding:22px 28px;max-width:400px;">
@@ -357,6 +1361,24 @@
 
   <script>
     (function () {
+      // PWA：動態產生 manifest 與圖示（單一 index.html 即可「加入主畫面」全螢幕遊玩）
+      (function setupPWA() {
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = 192;
+          const g = c.getContext('2d');
+          const bg = g.createRadialGradient(96, 96, 10, 96, 96, 96); bg.addColorStop(0, '#12324a'); bg.addColorStop(1, '#03050a');
+          g.fillStyle = bg; g.fillRect(0, 0, 192, 192);
+          g.strokeStyle = '#2ce8ff'; g.lineWidth = 6; g.beginPath(); g.arc(96, 96, 70, 0, Math.PI * 2); g.stroke();
+          g.fillStyle = '#e6f4fa'; g.beginPath(); g.moveTo(96, 34); g.lineTo(146, 140); g.lineTo(96, 116); g.lineTo(46, 140); g.closePath(); g.fill();
+          g.fillStyle = '#ffb03a'; g.beginPath(); g.arc(96, 92, 10, 0, Math.PI * 2); g.fill();
+          const png = c.toDataURL('image/png');
+          document.getElementById('pwa-icon').href = png;
+          const start = location.href.split('#')[0];
+          const manifest = { name: '星隕計畫 PROJECT STARFALL', short_name: '星隕計畫', start_url: start, scope: start.replace(/[^/]*$/, ''), display: 'fullscreen', orientation: 'landscape', background_color: '#03050a', theme_color: '#03050a', icons: [{ src: png, sizes: '192x192', type: 'image/png' }] };
+          document.getElementById('pwa-manifest').href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
+        } catch (e) {}
+      })();
+
       const STORAGE_KEY = 'project_starfall_save_v1';
       const DEFAULT_SAVE = {
         credits: 600, xp: 0, level: 1, unlockedSectors: 1, highScore: 0,
@@ -379,10 +1401,28 @@
       let saveData = loadSave();
 
       // 手機震動回饋系統 (Vibration API)
-      let hapticsEnabled = true;
+      // 玩家設定（獨立存檔，觸控裝置預設開啟自動開火＋輔助瞄準）
+      const IS_TOUCH = (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+      const DEBUG_MODE = /[?&]debug=1/.test(location.search);
+      const SETTINGS_KEY = 'project_starfall_settings_v2';
+      const settings = (function () {
+        const d = { haptics: true, autoFire: IS_TOUCH, aimAssist: true, voice: true, bloom: true, autoQuality: true };
+        try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { return d; }
+      })();
+      function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+      let hapticsEnabled = settings.haptics;
+      const HAS_VIBRATE = !!(navigator && typeof navigator.vibrate === 'function');
+      let hapticPulseEl = null, lastHapticVisual = 0;
       function vibrate(pattern) {
         if (!hapticsEnabled) return;
-        try { if (navigator && typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch (e) {}
+        if (HAS_VIBRATE) { try { navigator.vibrate(pattern); } catch (e) {} return; }
+        // iOS Safari 不支援震動：改用螢幕邊框閃光 + 輕微鏡頭震動當作觸覺替代
+        const total = Array.isArray(pattern) ? pattern.reduce(function (a, b, i) { return a + (i % 2 === 0 ? b : 0); }, 0) : pattern;
+        if (total < 18) return;
+        const t = performance.now(); if (t - lastHapticVisual < 90) return; lastHapticVisual = t;
+        if (!hapticPulseEl) hapticPulseEl = document.getElementById('haptic-pulse');
+        if (hapticPulseEl) { hapticPulseEl.classList.remove('hit'); void hapticPulseEl.offsetWidth; hapticPulseEl.classList.add('hit'); }
+        if (typeof state !== 'undefined' && state) state.shake = Math.min(1, state.shake + Math.min(0.25, total / 400));
       }
 
       const SECTORS = [
@@ -424,9 +1464,9 @@
       }
 
       const TIERS = {
-        HIGH:        { maxDpr: 2.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.28 },
-        BALANCED:    { maxDpr: 1.35, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.18 },
-        PERFORMANCE: { maxDpr: 0.9,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.08 }
+        HIGH:        { maxDpr: 2.0,  minDpr: 1.0,  stars: 3000, nebula: 3, asteroids: 72, dust: 260, envMult: 2.0, exposure: 1.28, bloom: 0.6, msaa: 4, planetHQ: true,  nebRes: 1024 },
+        BALANCED:    { maxDpr: 1.35, minDpr: 0.75, stars: 1600, nebula: 2, asteroids: 38, dust: 140, envMult: 1.5, exposure: 1.18, bloom: 0.5,  msaa: 4, planetHQ: false, nebRes: 768 },
+        PERFORMANCE: { maxDpr: 0.9,  minDpr: 0.6,  stars: 700,  nebula: 1, asteroids: 16, dust: 60,  envMult: 1.0, exposure: 1.08, bloom: 0,    msaa: 0, planetHQ: false, nebRes: 512 }
       };
 
       const WEAPONS = {
@@ -451,6 +1491,48 @@
         ['DESTROYER','INTERCEPTOR','INTERCEPTOR','BOMBER'],
         ['ELITE','INTERCEPTOR','DESTROYER','BOMBER']
       ];
+      // 各星域加碼敵軍（讓五個星域的波次組成不同）
+      const SECTOR_EXTRA = [
+        [],
+        ['BOMBER', 'SCOUT', 'INTERCEPTOR'],
+        ['ELITE', 'INTERCEPTOR', 'BOMBER'],
+        ['DESTROYER', 'BOMBER', 'ELITE'],
+        ['ELITE', 'DESTROYER', 'ELITE']
+      ];
+
+      // 弱點屬性：武器 × 敵種傷害倍率（>1 弱點、<1 抗性）
+      const WEAK = {
+        SCOUT:       { BURST: 1.4, PULSE: 1.25, RAILGUN: 0.85 },
+        INTERCEPTOR: { PLASMA: 1.5, BURST: 1.2 },
+        DESTROYER:   { RAILGUN: 1.6, PLASMA: 1.25, PULSE: 0.7, BURST: 0.7 },
+        BOMBER:      { PLASMA: 1.5, PHOTON_BEAM: 1.25, PULSE: 0.85 },
+        ELITE:       { PHOTON_BEAM: 1.5, RAILGUN: 1.35, BURST: 0.75 }
+      };
+      const WEAPON_ZH = { PULSE: '脈衝', PLASMA: '電漿', RAILGUN: '磁軌', PHOTON_BEAM: '光子', BURST: '連發' };
+      function weakHint(type) {
+        const w = WEAK[type]; let best = null;
+        Object.keys(w).forEach(function (k) { if (w[k] > 1 && (!best || w[k] > w[best])) best = k; });
+        return best ? WEAPON_ZH[best] : '';
+      }
+
+      // 波次強化卡（肉鴿機制）
+      const PERKS = [
+        { id: 'rail_split',  cat: '武器', col: '#82faff', name: '磁軌分裂彈', desc: '磁軌砲命中時向兩側分裂出 2 枚追擊碎片。' },
+        { id: 'plasma_wide', cat: '武器', col: '#ff8c2b', name: '電漿擴散', desc: '電漿砲爆炸半徑 +45%，傷害 +15%。' },
+        { id: 'photon_focus',cat: '武器', col: '#b678ff', name: '光子聚焦', desc: '光子束傷害 +35%，過熱速度 -15%。' },
+        { id: 'combo_frenzy',cat: '連擊', col: '#ffb03a', name: '連擊狂熱', desc: '連擊 x2.0 以上時，所有主武器射速 +30%。' },
+        { id: 'crit_calib',  cat: '武器', col: '#ffb03a', name: '暴擊校準', desc: '全武器暴擊率 +10%，暴擊傷害 +20%。' },
+        { id: 'heat_fins',   cat: '系統', col: '#2ce8ff', name: '散熱鰭片', desc: '武器累積熱量 -25%，主動散熱綠區加寬。' },
+        { id: 'shield_nova', cat: '防禦', col: '#4ef4ff', name: '護盾反衝', desc: '護盾被打破時自動釋放一次免費電磁脈衝。' },
+        { id: 'nano_repair', cat: '防禦', col: '#4effa8', name: '奈米修復', desc: '每秒自動修復 1.5 點裝甲，拾取物修復量翻倍。' },
+        { id: 'vampire',     cat: '防禦', col: '#ff3b4e', name: '擊殺回收', desc: '每擊毀一架敵機回復 4 點裝甲與 6 點護盾。' },
+        { id: 'missile_rack',cat: '軍械', col: '#ffd999', name: '飛彈連鎖', desc: '立即補滿飛彈，飛彈命中有 35% 機率返還 1 枚。' },
+        { id: 'cooldown',    cat: '軍械', col: '#ffd999', name: '戰術冷卻', desc: '電磁脈衝與重力彈冷卻 -30%。' },
+        { id: 'ult_charge',  cat: '必殺', col: '#d6a4ff', name: '必殺充能', desc: '必殺技充能速度 +40%。' },
+        { id: 'roll_master', cat: '機動', col: '#b678ff', name: '翻滾大師', desc: '翻滾冷卻 -40%，完美閃避額外回復 10 點護盾。' },
+        { id: 'thruster',    cat: '機動', col: '#ffb03a', name: '推進過載', desc: '機動速度 +12%，推進能量回復 +50%。' }
+      ];
+      function perkLv(id) { return (state && state.perks && state.perks[id]) || 0; }
 
       // Toast & Banner Helpers
       const toastBox = document.getElementById('toast-box');
@@ -483,191 +1565,324 @@
         persistSave();
       }
 
-      // AAA Stereo Layered Web Audio Engine (Stereo Panning + Noise Transients + 136 BPM Driving Action Score)
+      // v2 Web Audio 引擎：獨立音樂/音效匯流排 + 合成空間殘響 + 分層武器音效 + 無線電通訊特效 + 語音閃避(ducking)
       const sfx = {
-        ctx: null, enabled: false, master: null, noiseBuf: null,
+        ctx: null, enabled: false, master: null, sfxBus: null, musicBus: null, convolver: null, noiseBuf: null,
         engNoise: null, engFilter: null, engGain: null, musicTimer: null, step: 0, sideFlip: 1,
+        beam: null, staticBed: null, lastHit: 0, userMuted: !!settings.audioMuted,
         init: function () {
           if (this.ctx) return;
           const Ctx = window.AudioContext || window.webkitAudioContext;
           if (!Ctx) return;
           this.ctx = new Ctx();
-          this.master = this.ctx.createGain();
-          this.master.gain.value = 0.0;
-          const comp = this.ctx.createDynamicsCompressor();
-          comp.threshold.value = -14; comp.ratio.value = 6;
-          this.master.connect(comp); comp.connect(this.ctx.destination);
+          const c = this.ctx;
+          this.master = c.createGain(); this.master.gain.value = 0.0;
+          const comp = c.createDynamicsCompressor();
+          comp.threshold.value = -12; comp.knee.value = 8; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.16;
+          this.master.connect(comp); comp.connect(c.destination);
+          this.musicBus = c.createGain(); this.musicBus.gain.value = 0.62; this.musicBus.connect(this.master);
+          this.sfxBus = c.createGain(); this.sfxBus.gain.value = 1.0; this.sfxBus.connect(this.master);
 
-          // Pre-generate 2s stereo white noise buffer for explosions, railgun crack, plasma hiss & engine turbine
-          const len = this.ctx.sampleRate * 2;
-          this.noiseBuf = this.ctx.createBuffer(2, len, this.ctx.sampleRate);
-          for (let ch = 0; ch < 2; ch++) {
-            const data = this.noiseBuf.getChannelData(ch);
-            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-          }
+          const len = c.sampleRate * 2;
+          this.noiseBuf = c.createBuffer(2, len, c.sampleRate);
+          for (let ch = 0; ch < 2; ch++) { const d = this.noiseBuf.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; }
 
-          // Continuous Ion Engine Turbine Whoosh
-          this.engNoise = this.ctx.createBufferSource();
-          this.engNoise.buffer = this.noiseBuf; this.engNoise.loop = true;
-          this.engFilter = this.ctx.createBiquadFilter();
-          this.engFilter.type = 'bandpass'; this.engFilter.frequency.value = 180; this.engFilter.Q.value = 1.4;
-          this.engGain = this.ctx.createGain(); this.engGain.gain.value = 0.06;
-          this.engNoise.connect(this.engFilter); this.engFilter.connect(this.engGain); this.engGain.connect(this.master);
+          // 合成太空艙殘響（指數衰減立體聲脈衝響應）
+          const irLen = Math.floor(c.sampleRate * 1.3), ir = c.createBuffer(2, irLen, c.sampleRate);
+          for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3.2); }
+          this.convolver = c.createConvolver(); this.convolver.buffer = ir;
+          const revOut = c.createGain(); revOut.gain.value = 0.55;
+          const revLp = c.createBiquadFilter(); revLp.type = 'lowpass'; revLp.frequency.value = 5200;
+          this.convolver.connect(revLp); revLp.connect(revOut); revOut.connect(this.master);
+
+          this.engNoise = c.createBufferSource(); this.engNoise.buffer = this.noiseBuf; this.engNoise.loop = true;
+          this.engFilter = c.createBiquadFilter(); this.engFilter.type = 'bandpass'; this.engFilter.frequency.value = 180; this.engFilter.Q.value = 1.4;
+          this.engGain = c.createGain(); this.engGain.gain.value = 0.05;
+          this.engNoise.connect(this.engFilter); this.engFilter.connect(this.engGain); this.engGain.connect(this.sfxBus);
           this.engNoise.start();
-
           this.startActionScore();
         },
-        makePan: function (panVal) {
-          const p = Math.max(-0.92, Math.min(0.92, panVal || 0));
-          if (this.ctx.createStereoPanner) {
-            const sp = this.ctx.createStereoPanner(); sp.pan.value = p; sp.connect(this.master); return sp;
-          }
-          return this.master;
+        // 第一次觸控/按鍵時自動開啟音效（除非玩家曾手動靜音）
+        unlock: function () {
+          this.init(); if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          if (!this.userMuted && !this.enabled) this.setEnabled(true);
         },
-        toggle: function () {
+        setEnabled: function (on) {
           this.init(); if (!this.ctx) return false;
           if (this.ctx.state === 'suspended') this.ctx.resume();
-          this.enabled = !this.enabled;
-          this.master.gain.setTargetAtTime(this.enabled ? 0.72 : 0.0, this.ctx.currentTime, 0.08);
-          return this.enabled;
+          this.enabled = on;
+          this.master.gain.setTargetAtTime(on ? 0.8 : 0.0, this.ctx.currentTime, 0.08);
+          if (!on) this.beamStop();
+          if (typeof syncAudioBtn === 'function') syncAudioBtn();
+          return on;
+        },
+        toggle: function () {
+          const on = this.setEnabled(!this.enabled);
+          this.userMuted = !on; settings.audioMuted = !on; persistSettings();
+          return on;
+        },
+        duck: function (on) {
+          if (!this.ctx) return;
+          this.musicBus.gain.setTargetAtTime(on ? 0.22 : 0.62, this.ctx.currentTime, 0.12);
+          this.sfxBus.gain.setTargetAtTime(on ? 0.72 : 1.0, this.ctx.currentTime, 0.12);
+        },
+        ok: function () { return !!(this.ctx && this.enabled); },
+        makePan: function (panVal, rev, dest) {
+          const c = this.ctx, p = Math.max(-0.92, Math.min(0.92, panVal || 0));
+          const node = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
+          if (node.pan) node.pan.value = p;
+          node.connect(dest || this.sfxBus);
+          if (rev > 0) { const s = c.createGain(); s.gain.value = rev; node.connect(s); s.connect(this.convolver); }
+          return node;
+        },
+        env: function (g, t, a, peak, d) {
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(peak, t + a);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+        },
+        osc: function (type, f0, f1, t, dur, dest, peak, att, detune) {
+          const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+          o.type = type; o.frequency.setValueAtTime(f0, t);
+          if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+          if (detune) o.detune.value = detune;
+          this.env(g, t, att || 0.002, peak, dur);
+          o.connect(g); g.connect(dest); o.start(t); o.stop(t + (att || 0.002) + dur + 0.03);
+          return o;
+        },
+        noise: function (t, dur, type, f0, f1, q, peak, dest, att) {
+          const c = this.ctx, ns = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+          ns.buffer = this.noiseBuf; f.type = type; f.frequency.setValueAtTime(f0, t);
+          if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+          if (q) f.Q.value = q;
+          this.env(g, t, att || 0.002, peak, dur);
+          ns.connect(f); f.connect(g); g.connect(dest); ns.start(t, Math.random() * 1.4, dur + 0.06);
+        },
+        filt: function (type, f0, f1, t, dur, q, dest) {
+          const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(f0, t);
+          if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+          if (q) f.Q.value = q; f.connect(dest); return f;
         },
         updateFlightAudio: function (boosting, speedMag) {
-          if (!this.ctx || !this.enabled || !this.engFilter) return;
+          if (!this.ok() || !this.engFilter) return;
           const now = this.ctx.currentTime;
           this.engFilter.frequency.setTargetAtTime(boosting ? 560 : 170 + speedMag * 120, now, 0.09);
-          this.engGain.gain.setTargetAtTime(boosting ? 0.14 : 0.055 + speedMag * 0.025, now, 0.09);
+          this.engGain.gain.setTargetAtTime(boosting ? 0.12 : 0.045 + speedMag * 0.022, now, 0.09);
         },
         startActionScore: function () {
           const self = this;
-          // 136 BPM 16th-note step = ~110ms — Driving Hans-Zimmer / Sci-Fi Synthwave Action Pulse
           const bassSeq = [73.42, 73.42, 146.83, 73.42, 87.31, 73.42, 110.0, 98.0, 58.27, 58.27, 116.54, 58.27, 65.41, 65.41, 130.81, 82.41];
           const leadSeq = [293.66, 0, 349.23, 0, 440.0, 0, 392.0, 349.23, 329.63, 0, 293.66, 0, 261.63, 0, 329.63, 0];
           this.musicTimer = window.setInterval(function () {
-            if (!self.enabled || !self.ctx || state.paused) return;
-            const now = self.ctx.currentTime;
+            if (!self.enabled || !self.ctx || state.paused || bgPaused) return;
+            const now = self.ctx.currentTime + 0.02, mb = self.musicBus;
             const st = self.step % 16;
             const isBoss = !!(boss && !boss.dying);
-
-            // 1. Tight Punchy Electronic Kick on beats 0, 4, 8, 12 (+ extra syncopated kick on Boss!)
-            if (st % 4 === 0 || (isBoss && st === 14)) {
-              const ko = self.ctx.createOscillator(), kg = self.ctx.createGain();
-              ko.type = 'sine'; ko.frequency.setValueAtTime(138, now); ko.frequency.exponentialRampToValueAtTime(38, now + 0.11);
-              kg.gain.setValueAtTime(isBoss ? 0.34 : 0.25, now); kg.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
-              ko.connect(kg); kg.connect(self.master); ko.start(now); ko.stop(now + 0.14);
-            }
-
-            // 2. Crisp Stereo Hi-Hat / Flight Percussion Tick on off-beats
-            if (st % 2 === 1) {
-              const ns = self.ctx.createBufferSource(); ns.buffer = self.noiseBuf;
-              const hp = self.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6800;
-              const hg = self.ctx.createGain(); hg.gain.setValueAtTime(st % 4 === 3 ? 0.055 : 0.032, now);
-              hg.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-              const pan = self.makePan((st % 4 === 1) ? -0.35 : 0.35);
-              ns.connect(hp); hp.connect(hg); hg.connect(pan);
-              ns.start(now, Math.random() * 1.2, 0.05);
-            }
-
-            // 3. Driving 16th-Note Resonant Synth Bass Arp
-            const bf = bassSeq[st] * (isBoss ? 1.0 : 1.0);
-            const bo = self.ctx.createOscillator(), bftr = self.ctx.createBiquadFilter(), bg = self.ctx.createGain();
-            bo.type = 'sawtooth'; bo.frequency.setValueAtTime(bf, now);
-            bftr.type = 'lowpass'; bftr.Q.value = isBoss ? 5.2 : 3.2;
-            bftr.frequency.setValueAtTime(isBoss ? 920 : 540, now); bftr.frequency.exponentialRampToValueAtTime(150, now + 0.095);
-            bg.gain.setValueAtTime(0.11, now); bg.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
-            bo.connect(bftr); bftr.connect(bg); bg.connect(self.master); bo.start(now); bo.stop(now + 0.105);
-
-            // 4. Stereo Cinematic Sci-Fi Lead / Boss Tension Riff
+            if (st % 4 === 0 || (isBoss && st === 14)) self.osc('sine', 138, 38, now, 0.13, mb, isBoss ? 0.34 : 0.25, 0.001);
+            if (st % 2 === 1) self.noise(now, 0.045, 'highpass', 6800, 0, 0, st % 4 === 3 ? 0.055 : 0.032, self.makePan(st % 4 === 1 ? -0.35 : 0.35, 0, mb), 0.001);
+            const bl = self.filt('lowpass', isBoss ? 920 : 540, 150, now, 0.095, isBoss ? 5.2 : 3.2, mb);
+            self.osc('sawtooth', bassSeq[st], 0, now, 0.1, bl, 0.11, 0.002);
             const lf = leadSeq[st];
             if (lf > 0 && (isBoss || self.step % 32 >= 16)) {
-              const lo = self.ctx.createOscillator(), lg = self.ctx.createGain(), lftr = self.ctx.createBiquadFilter();
-              lo.type = isBoss ? 'sawtooth' : 'triangle';
-              lo.frequency.setValueAtTime(lf * (isBoss ? 1.0 : 0.5), now);
-              lftr.type = 'lowpass'; lftr.frequency.value = isBoss ? 1800 : 1200;
-              lg.gain.setValueAtTime(0.055, now); lg.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
-              const pan = self.makePan((st % 8 < 4) ? -0.45 : 0.45);
-              lo.connect(lftr); lftr.connect(lg); lg.connect(pan); lo.start(now); lo.stop(now + 0.2);
+              const ll = self.filt('lowpass', isBoss ? 1800 : 1200, 0, now, 0.19, 0, self.makePan(st % 8 < 4 ? -0.45 : 0.45, 0.25, mb));
+              self.osc(isBoss ? 'sawtooth' : 'triangle', lf * (isBoss ? 1.0 : 0.5), 0, now, 0.19, ll, 0.055, 0.004);
             }
             self.step++;
           }, 110);
         },
         playWeapon: function (kind, panHint) {
-          if (!this.ctx || !this.enabled) return;
-          const now = this.ctx.currentTime;
+          if (!this.ok()) return;
+          const t = this.ctx.currentTime, pr = 1 + (Math.random() - 0.5) * 0.08;
           this.sideFlip = -this.sideFlip;
-          const pan = this.makePan(panHint !== undefined ? panHint : this.sideFlip * 0.36);
-
-          if (kind === 'PULSE' || kind === 'BURST') {
-            // Stereo laser punch + crisp high-frequency transient crack
-            const o1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
-            o1.type = kind === 'BURST' ? 'square' : 'sawtooth';
-            o1.frequency.setValueAtTime(kind === 'BURST' ? 980 : 780, now);
-            o1.frequency.exponentialRampToValueAtTime(145, now + 0.085);
-            g1.gain.setValueAtTime(0.14, now); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
-            const f1 = this.ctx.createBiquadFilter(); f1.type = 'lowpass'; f1.frequency.value = 2600;
-            o1.connect(f1); f1.connect(g1); g1.connect(pan); o1.start(now); o1.stop(now + 0.1);
-
-            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
-            const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3400;
-            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.09, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-            ns.connect(bp); bp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.045);
+          const pv = panHint !== undefined ? panHint : this.sideFlip * 0.3;
+          if (kind === 'PULSE') {
+            // 雷射脈衝：雙振盪器下滑 + 共振低通掃頻 + 低頻後座 + 高頻擊發點
+            const out = this.makePan(pv, 0.16);
+            const lp = this.filt('lowpass', 7200, 900, t, 0.085, 5, out);
+            this.osc('sawtooth', 1500 * pr, 260, t, 0.085, lp, 0.085);
+            this.osc('square', 1512 * pr, 262, t, 0.085, lp, 0.045, 0.002, 8);
+            this.osc('sine', 190 * pr, 55, t, 0.05, out, 0.17, 0.001);
+            this.noise(t, 0.014, 'highpass', 4200, 0, 0, 0.07, out, 0.001);
+          } else if (kind === 'BURST') {
+            // 四連發：三段快速機槍點放
+            for (let k = 0; k < 3; k++) {
+              const tt = t + k * 0.026, out = this.makePan((k % 2 ? 0.32 : -0.32), 0.12);
+              const lp = this.filt('lowpass', 5200, 1200, tt, 0.045, 3, out);
+              this.osc('square', 1150 * pr * (1 + k * 0.05), 380, tt, 0.045, lp, 0.06, 0.001);
+              this.osc('sine', 230, 70, tt, 0.035, out, 0.11, 0.001);
+              this.noise(tt, 0.012, 'highpass', 3800, 0, 0, 0.06, out, 0.001);
+            }
           } else if (kind === 'PLASMA') {
-            // Heavy sub-bass thump + sizzling plasma hiss across stereo
-            const o1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
-            o1.type = 'sawtooth'; o1.frequency.setValueAtTime(210, now); o1.frequency.exponentialRampToValueAtTime(38, now + 0.22);
-            g1.gain.setValueAtTime(0.24, now); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
-            o1.connect(g1); g1.connect(pan); o1.start(now); o1.stop(now + 0.25);
-
-            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
-            const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(1600, now); bp.frequency.exponentialRampToValueAtTime(380, now + 0.22);
-            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.18, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.23);
-            ns.connect(bp); bp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.24);
+            // 電漿：次低頻重擊 + 共振哇音身體 + 嘶嘶電漿尾音
+            const out = this.makePan(pv * 0.4, 0.3);
+            this.osc('sine', 115 * pr, 34, t, 0.32, out, 0.32, 0.003);
+            const lp = this.filt('lowpass', 3400, 240, t, 0.26, 9, out);
+            this.osc('sawtooth', 430 * pr, 68, t, 0.26, lp, 0.15, 0.003);
+            this.osc('sawtooth', 436 * pr, 69, t, 0.26, lp, 0.1, 0.003, -12);
+            this.noise(t, 0.24, 'bandpass', 2600, 650, 1.3, 0.12, out, 0.004);
           } else if (kind === 'RAILGUN') {
-            // Supersonic hypervelocity crack + dual-channel stereo sub-boom
-            const o1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
-            o1.type = 'sawtooth'; o1.frequency.setValueAtTime(1650, now); o1.frequency.exponentialRampToValueAtTime(42, now + 0.28);
-            g1.gain.setValueAtTime(0.26, now); g1.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
-            o1.connect(g1); g1.connect(this.master); o1.start(now); o1.stop(now + 0.31);
-
-            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
-            const hp = this.ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.setValueAtTime(4200, now); hp.frequency.exponentialRampToValueAtTime(520, now + 0.24);
-            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.28, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-            ns.connect(hp); hp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.26);
+            // 磁軌砲：電容預充嗡鳴 → 超音速爆裂 → 金屬共鳴環 → 低頻衝擊
+            const out = this.makePan(0, 0.45);
+            this.osc('sine', 900, 4400, t, 0.05, out, 0.05, 0.01);
+            const tc = t + 0.045;
+            this.noise(tc, 0.045, 'highpass', 1800, 0, 0, 0.42, out, 0.001);
+            const lp = this.filt('lowpass', 7000, 900, tc, 0.22, 2, out);
+            this.osc('sawtooth', 2400 * pr, 60, tc, 0.22, lp, 0.14, 0.001);
+            [[1870, 0.05], [2730, 0.034], [4150, 0.024]].forEach(function (pp) { this.osc('sine', pp[0] * pr, 0, tc, 0.55, out, pp[1], 0.002); }, this);
+            this.osc('sine', 78, 28, tc, 0.46, out, 0.36, 0.002);
           } else if (kind === 'MISSILE') {
-            const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
-            const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(600, now); bp.frequency.exponentialRampToValueAtTime(2400, now + 0.26); bp.Q.value = 2.0;
-            const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.20, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-            ns.connect(bp); bp.connect(ng); ng.connect(pan); ns.start(now, Math.random(), 0.30);
+            const out = this.makePan(pv, 0.25);
+            this.noise(t, 0.05, 'lowpass', 900, 0, 0, 0.22, out, 0.001);
+            this.osc('sine', 160, 60, t, 0.07, out, 0.16, 0.001);
+            this.noise(t + 0.02, 0.36, 'bandpass', 480, 2600, 2.2, 0.16, out, 0.03);
           }
         },
+        // 光子束：持續型雙鋸齒波 + 17Hz 顫音，按住期間不斷音
+        beamStart: function () {
+          if (!this.ok() || this.beam) return;
+          const c = this.ctx, t = c.currentTime;
+          const out = this.makePan(0, 0.22), g = c.createGain(), lp = c.createBiquadFilter(), trem = c.createGain();
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.085, t + 0.05);
+          lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 6;
+          trem.gain.value = 0.75;
+          const lfo = c.createOscillator(), lfoG = c.createGain(); lfo.frequency.value = 17; lfoG.gain.value = 0.25;
+          lfo.connect(lfoG); lfoG.connect(trem.gain);
+          const o1 = c.createOscillator(), o2 = c.createOscillator(), o3 = c.createOscillator(), o3g = c.createGain();
+          o1.type = 'sawtooth'; o1.frequency.value = 110; o2.type = 'sawtooth'; o2.frequency.value = 111.4;
+          o3.type = 'sine'; o3.frequency.value = 880; o3g.gain.value = 0.35;
+          o1.connect(lp); o2.connect(lp); o3.connect(o3g); o3g.connect(lp);
+          lp.connect(trem); trem.connect(g); g.connect(out);
+          [o1, o2, o3, lfo].forEach(function (o) { o.start(t); });
+          this.osc('sawtooth', 2200, 300, t, 0.12, out, 0.08, 0.002);
+          this.beam = { g: g, lp: lp, nodes: [o1, o2, o3, lfo] };
+        },
+        beamUpdate: function (heat) {
+          if (!this.beam) return;
+          this.beam.lp.frequency.setTargetAtTime(1300 + heat * 22, this.ctx.currentTime, 0.05);
+        },
+        beamStop: function () {
+          if (!this.beam || !this.ctx) { this.beam = null; return; }
+          const t = this.ctx.currentTime, b = this.beam; this.beam = null;
+          b.g.gain.cancelScheduledValues(t); b.g.gain.setTargetAtTime(0.0001, t, 0.03);
+          b.nodes.forEach(function (o) { try { o.stop(t + 0.15); } catch (e) {} });
+        },
+        hit: function (kind) {
+          if (!this.ok()) return;
+          const t = this.ctx.currentTime; if (t - this.lastHit < 0.035) return; this.lastHit = t;
+          const out = this.makePan((Math.random() - 0.5) * 0.4, 0.1);
+          if (kind === 'shield') { this.osc('sine', 2600, 1500, t, 0.06, out, 0.035); this.noise(t, 0.03, 'bandpass', 5000, 0, 2, 0.03, out); }
+          else if (kind === 'weak') { this.osc('square', 940, 760, t, 0.07, out, 0.035); this.osc('sine', 1410, 0, t, 0.12, out, 0.035); }
+          else { this.noise(t, 0.028, 'bandpass', 2800, 1200, 1.5, 0.06, out); this.osc('sine', 520, 240, t, 0.035, out, 0.05); }
+        },
         playExplosion: function (worldX, scale) {
-          if (!this.ctx || !this.enabled) return;
-          const now = this.ctx.currentTime;
+          if (!this.ok()) return;
+          const t = this.ctx.currentTime;
           const sc = Math.min(2.5, Math.max(0.7, scale || 1.0));
-          const pan = this.makePan((worldX || 0) / 18);
-
-          // Deep Zero-G Sub-Bass Shockwave Boom
-          const sub = this.ctx.createOscillator(), sg = this.ctx.createGain();
-          sub.type = 'sine'; sub.frequency.setValueAtTime(92, now); sub.frequency.exponentialRampToValueAtTime(22, now + 0.42 * sc);
-          sg.gain.setValueAtTime(0.32, now); sg.gain.exponentialRampToValueAtTime(0.001, now + 0.45 * sc);
-          sub.connect(sg); sg.connect(pan); sub.start(now); sub.stop(now + 0.46 * sc);
-
-          // Roaring Low-Pass Filtered Fireball Blast Noise
-          const ns = this.ctx.createBufferSource(); ns.buffer = this.noiseBuf;
-          const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass';
-          lp.frequency.setValueAtTime(1400, now); lp.frequency.exponentialRampToValueAtTime(140, now + 0.48 * sc);
-          const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.34, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.52 * sc);
-          ns.connect(lp); lp.connect(ng); ng.connect(pan); ns.start(now, Math.random() * 0.5, 0.55 * sc);
+          const out = this.makePan((worldX || 0) / 18, 0.35);
+          this.osc('sine', 92, 22, t, 0.45 * sc, out, 0.32, 0.002);
+          this.noise(t, 0.52 * sc, 'lowpass', 1500, 130, 0, 0.34, out, 0.003);
+          this.noise(t + 0.03, 0.18 * sc, 'bandpass', 3200, 900, 0.8, 0.08, out, 0.002);
         },
         tone: function (f1, f2, dur, type, vol, panVal) {
-          if (!this.ctx || !this.enabled) return;
-          const now = this.ctx.currentTime, osc = this.ctx.createOscillator(), g = this.ctx.createGain();
-          osc.type = type || 'triangle';
-          osc.frequency.setValueAtTime(f1, now); osc.frequency.exponentialRampToValueAtTime(Math.max(24, f2), now + dur);
-          g.gain.setValueAtTime(vol || 0.09, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
-          const dest = this.makePan(panVal || 0);
-          osc.connect(g); g.connect(dest); osc.start(now); osc.stop(now + dur);
+          if (!this.ok()) return;
+          this.osc(type || 'triangle', f1, Math.max(24, f2), this.ctx.currentTime, dur, this.makePan(panVal || 0, 0.12), vol || 0.09);
+        },
+        // 無線電：開麥克風雜訊爆音 + 持續靜電底噪
+        radioOpen: function (isHQ) {
+          if (!this.ok()) return;
+          const c = this.ctx, t = c.currentTime, out = this.makePan(isHQ ? 0.12 : -0.12, 0);
+          this.noise(t, 0.11, 'bandpass', 1900, 1200, 0.9, 0.13, out, 0.002);
+          this.osc('square', 2200, 0, t, 0.012, out, 0.05, 0.001);
+          this.radioBedStop();
+          const ns = c.createBufferSource(); ns.buffer = this.noiseBuf; ns.loop = true;
+          const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 0.7;
+          const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.016, t + 0.12);
+          ns.connect(bp); bp.connect(g); g.connect(out); ns.start(t, Math.random());
+          this.staticBed = { ns: ns, g: g };
+        },
+        radioBedStop: function () {
+          if (!this.staticBed || !this.ctx) { this.staticBed = null; return; }
+          const t = this.ctx.currentTime, b = this.staticBed; this.staticBed = null;
+          b.g.gain.setTargetAtTime(0.0001, t, 0.03); try { b.ns.stop(t + 0.2); } catch (e) {}
+        },
+        // 收訊結束：Roger Beep 雙音 + 尾段雜訊
+        radioClose: function () {
+          this.radioBedStop();
+          if (!this.ok()) return;
+          const t = this.ctx.currentTime, out = this.makePan(0, 0);
+          this.osc('sine', 1850, 0, t, 0.06, out, 0.05, 0.002);
+          this.osc('sine', 1400, 0, t + 0.07, 0.07, out, 0.05, 0.002);
+          this.noise(t + 0.13, 0.09, 'bandpass', 1700, 900, 0.9, 0.09, out, 0.002);
         }
       };
+
+      // 無線電人聲（Web Speech API 繁中語音 + 無線電特效；凱文＝低沉男聲、琳＝女聲）
+      const radioVoice = {
+        supported: typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined',
+        voices: [], speaking: false, current: null, unlocked: false, failTimer: null,
+        pick: function () {
+          if (!this.supported) return;
+          const all = window.speechSynthesis.getVoices() || [];
+          let zh = all.filter(function (v) { return /zh[-_](TW|HK|Hant)/i.test(v.lang) || /Taiwan|臺灣|台灣|國語/i.test(v.name); });
+          if (!zh.length) zh = all.filter(function (v) { return /^zh|cmn/i.test(v.lang); });
+          this.voices = zh;
+        },
+        voiceFor: function (sender) {
+          const vs = this.voices; if (!vs.length) return { v: null, native: false };
+          const male = /Zhiwei|Kangkang|Yunyang|Yunxi|Yunjian|Li-mu|Liang|male|男/i, female = /Yating|Hanhan|HsiaoChen|HsiaoYu|Mei-?Jia|Ting-?Ting|Sin-?ji|Xiaoxiao|female|女/i;
+          const want = sender === 'HQ' ? female : male;
+          const hit = vs.filter(function (v) { return want.test(v.name); })[0];
+          if (hit) return { v: hit, native: true };
+          return { v: (sender === 'HQ' ? vs[vs.length > 1 ? 1 : 0] : vs[0]), native: false };
+        },
+        unlock: function () {
+          if (!this.supported || this.unlocked) return;
+          this.unlocked = true;
+          try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.lang = 'zh-TW'; window.speechSynthesis.speak(u); } catch (e) {}
+        },
+        stop: function () {
+          if (!this.supported) return;
+          try { window.speechSynthesis.cancel(); } catch (e) {}
+          this.finish();
+        },
+        finish: function () {
+          clearTimeout(this.failTimer);
+          if (!this.speaking) return;
+          this.speaking = false; this.current = null;
+          sfx.radioClose(); sfx.duck(false);
+          commsBox.classList.remove('talking');
+          clearTimeout(commsHideTimer);
+          commsHideTimer = setTimeout(function () { commsBox.classList.remove('show'); }, 1100);
+        },
+        say: function (sender, text, force) {
+          if (!this.supported || !settings.voice || !sfx.ok()) return false;
+          if (this.speaking && !force) return false;
+          const self = this;
+          try { window.speechSynthesis.cancel(); } catch (e) {}
+          if (this.speaking) { this.speaking = false; sfx.radioBedStop(); }
+          if (!this.voices.length) this.pick();
+          const sel = this.voiceFor(sender);
+          const u = new SpeechSynthesisUtterance(text.replace(/[「」]/g, '').replace(/！/g, '！ '));
+          u.lang = sel.v ? sel.v.lang : 'zh-TW';
+          if (sel.v) u.voice = sel.v;
+          u.rate = sender === 'HQ' ? 1.08 : 1.18;
+          u.pitch = sel.native ? (sender === 'HQ' ? 1.05 : 0.92) : (sender === 'HQ' ? 1.18 : 0.68);
+          u.volume = 1.0;
+          this.current = u; this.speaking = true;
+          sfx.radioOpen(sender === 'HQ'); sfx.duck(true);
+          commsBox.classList.add('talking');
+          u.onend = u.onerror = function () { if (self.current === u) self.finish(); };
+          // 部分瀏覽器不觸發 onend，用估算時長保底
+          clearTimeout(this.failTimer);
+          this.failTimer = setTimeout(function () { if (self.current === u) self.finish(); }, 2200 + text.length * 260);
+          setTimeout(function () { try { window.speechSynthesis.speak(u); } catch (e) { self.finish(); } }, 140);
+          return true;
+        }
+      };
+      if (radioVoice.supported) {
+        radioVoice.pick();
+        try { window.speechSynthesis.addEventListener('voiceschanged', function () { radioVoice.pick(); }); } catch (e) { window.speechSynthesis.onvoiceschanged = function () { radioVoice.pick(); }; }
+      }
 
       // Procedural 512x512 Aerospace Metallic PBR Suite (Brushed Titanium + Edge Wear + Rivets + Panel Seams)
       function createHullPBR(baseHex, panelHex, stripeHex, emiHex, addWindows) {
@@ -963,6 +2178,61 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       wrap.appendChild(renderer.domElement);
 
+      // 固定燈光池：場景燈光數量永遠不變 → 不會觸發 shader 重新編譯（原本每次爆炸 new PointLight 造成卡頓）
+      const expLights = [0, 1].map(function () { const l = new THREE.PointLight(0xff7a22, 0, 40); scene.add(l); return { light: l, owner: null }; });
+      let expLightIdx = 0;
+      function claimExpLight(owner) {
+        const slot = expLights[expLightIdx]; expLightIdx = (expLightIdx + 1) % expLights.length;
+        slot.owner = owner; return slot;
+      }
+      const bossLight = new THREE.PointLight(0xff4818, 0, 58); scene.add(bossLight);
+
+      // Bloom 後處理（UnrealBloom，行動裝置用 WebGL2 MSAA 保留抗鋸齒）
+      let composer = null, bloomPass = null, bloomActive = false;
+      function disposeComposer() {
+        if (!composer) return;
+        try { composer.renderTarget1.dispose(); composer.renderTarget2.dispose(); if (bloomPass) bloomPass.dispose(); } catch (e) {}
+        composer = null; bloomPass = null; bloomActive = false;
+      }
+      function setupPostFX(cfg) {
+        disposeComposer();
+        if (!(settings.bloom && cfg.bloom > 0 && THREE.EffectComposer && THREE.UnrealBloomPass)) return;
+        try {
+          const pr = renderer.getPixelRatio(), w = window.innerWidth, h = window.innerHeight;
+          const params = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat };
+          let rt;
+          if (renderer.capabilities.isWebGL2 && cfg.msaa && THREE.WebGLMultisampleRenderTarget) {
+            rt = new THREE.WebGLMultisampleRenderTarget(Math.round(w * pr), Math.round(h * pr), params); rt.samples = cfg.msaa;
+          }
+          composer = new THREE.EffectComposer(renderer, rt);
+          composer._pixelRatio = pr; composer.setSize(w, h);
+          composer.addPass(new THREE.RenderPass(scene, camera));
+          bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), cfg.bloom, 0.42, 0.9);
+          composer.addPass(bloomPass);
+          bloomActive = true;
+        } catch (e) { console.warn('PostFX disabled', e); disposeComposer(); }
+      }
+      function renderFrame() {
+        if (bloomActive && composer) composer.render(); else renderer.render(scene, camera);
+      }
+
+      // 自適應解析度：每 2 秒量測 FPS，自動升降 pixelRatio，必要時關閉泛光
+      const perf = { acc: 0, frames: 0, dpr: 1, raiseLock: 0 };
+      function setDpr(d) {
+        perf.dpr = d; renderer.setPixelRatio(d);
+        if (composer) { composer._pixelRatio = d; composer.setSize(window.innerWidth, window.innerHeight); }
+      }
+      function adaptQuality(realDt) {
+        if (!settings.autoQuality) return;
+        perf.acc += realDt; perf.frames++; perf.raiseLock = Math.max(0, perf.raiseLock - realDt);
+        if (perf.acc < 2.0) return;
+        const fps = perf.frames / perf.acc; perf.acc = 0; perf.frames = 0;
+        const cfg = TIERS[currentTier], cap = Math.min(window.devicePixelRatio || 1, cfg.maxDpr);
+        if (fps < 48 && perf.dpr > cfg.minDpr + 0.01) { setDpr(Math.max(cfg.minDpr, perf.dpr - 0.15)); perf.raiseLock = 10; }
+        else if (fps < 40 && bloomActive) { disposeComposer(); showToast('自動畫質：已暫停泛光特效以維持流暢'); perf.raiseLock = 10; }
+        else if (fps > 57 && perf.raiseLock <= 0 && perf.dpr < cap - 0.01) { setDpr(Math.min(cap, perf.dpr + 0.1)); perf.raiseLock = 4; }
+      }
+
       // Procedural PMREM Space Studio Reflection Map (makes titanium & gunmetal catch real specular reflections!)
       (function buildSpaceEnvMap() {
         const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1005,7 +2275,11 @@
         '  gas = mix(gas, uColorGold, ionRim * 0.85);',
         '  gas *= (1.0 - dustLane * 0.62);',
         '  float coreGlow = smoothstep(0.22, 0.88, cloud) * radial;',
+        '#ifdef BAKE_PREMUL',
+        '  gl_FragColor = vec4(gas * (1.25 + ionRim * 1.1) * coreGlow * uOpacity, 1.0);',
+        '#else',
         '  gl_FragColor = vec4(gas * (1.25 + ionRim * 1.1), coreGlow * uOpacity);',
+        '#endif',
         '}'
       ].join('\n');
 
@@ -1018,7 +2292,7 @@
         '  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),',
         '             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);',
         '}',
-        'float fbm3(vec3 p){ float v=0.0,a=0.5; for(int i=0;i<4;i++){ v+=a*noise3(p); p*=2.08; a*=0.5; } return v; }',
+        'float fbm3(vec3 p){ float v=0.0,a=0.5; for(int i=0;i<OCT;i++){ v+=a*noise3(p); p*=2.08; a*=0.5; } return v; }',
         'float terrainH(vec3 p){',
         '  float continents = fbm3(p * 2.4);',
         '  float ridges = 1.0 - abs(fbm3(p * 6.5) * 2.0 - 1.0);',
@@ -1028,9 +2302,13 @@
         'void main(){',
         '  vec3 sp = normalize(vPos);',
         '  float h  = terrainH(sp);',
+        '#ifdef PLANET_HQ',
         '  float hx = terrainH(normalize(sp + vec3(0.015, 0.0, 0.0)));',
         '  float hy = terrainH(normalize(sp + vec3(0.0, 0.015, 0.0)));',
         '  vec3 bumpN = normalize(vN + vec3(h - hx, h - hy, 0.0) * 6.8);',
+        '#else',
+        '  vec3 bumpN = normalize(vN + vec3(h - 0.5, 0.5 - h, 0.0) * 0.35);',
+        '#endif',
         '  vec3 lightDir = normalize(vec3(0.72, 0.42, 0.38));',
         '  float ndl = max(dot(bumpN, lightDir), 0.0);',
         '  float macroNdl = dot(vN, lightDir);',
@@ -1089,8 +2367,44 @@
       const dummy = new THREE.Object3D();
       let currentSectorIdx = 0;
 
+      // 共用貼圖（不可在環境重建時釋放）
+      function isSharedTex(t) {
+        if (!t) return true;
+        const shared = [pbrCeramic, pbrGunmetal, pbrBoss, pbrRelic].concat(carrierPBRs);
+        for (let i = 0; i < shared.length; i++) { const p = shared[i]; if (t === p.map || t === p.bumpMap || t === p.roughnessMap || t === p.emissiveMap) return true; }
+        return t === muzzleTex || t === fireballTex || t === smokePlumeTex;
+      }
+      function disposeObject3D(root, disposeTextures) {
+        root.traverse(function (o) {
+          if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+          if (o.material) {
+            (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) {
+              if (m.userData && m.userData.shared) return;
+              if (disposeTextures) ['map', 'bumpMap', 'roughnessMap', 'emissiveMap'].forEach(function (k) { if (m[k] && !isSharedTex(m[k])) m[k].dispose(); });
+              m.dispose();
+            });
+          }
+        });
+      }
+      // 星雲預烘焙：原本每幀在 3~4 層全螢幕加法平面上跑 fbm，改成建場景時算一次存成貼圖
+      const BAKE_VERT = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
+      const bakeScene = new THREE.Scene(), bakeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const bakeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)); bakeQuad.frustumCulled = false; bakeScene.add(bakeQuad);
+      let envRTs = [], nebulaPlanes = [];
+      function bakeShader(frag, uniforms, w, h, defines) {
+        const rt = new THREE.WebGLRenderTarget(w, h, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+        const mat = new THREE.ShaderMaterial({ vertexShader: BAKE_VERT, fragmentShader: frag, uniforms: uniforms, defines: defines || {}, blending: THREE.NoBlending, depthTest: false, depthWrite: false, toneMapped: false });
+        bakeQuad.material = mat;
+        const prevClear = renderer.getClearColor(new THREE.Color()), prevAlpha = renderer.getClearAlpha();
+        renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(bakeScene, bakeCam);
+        renderer.setRenderTarget(null); renderer.setClearColor(prevClear, prevAlpha);
+        mat.dispose(); envRTs.push(rt);
+        return rt.texture;
+      }
+
       function buildEnvironment(cfg, sec) {
-        while (envGroup.children.length > 0) envGroup.remove(envGroup.children[0]);
+        while (envGroup.children.length > 0) { const ch = envGroup.children[0]; envGroup.remove(ch); disposeObject3D(ch, true); }
+        envRTs.forEach(function (rt) { rt.dispose(); }); envRTs = []; nebulaPlanes = [];
         nebulaUniforms = []; portalUniforms = []; asteroidData = []; bgCarriers = [];
         keyLight.color.setHex(sec.key); rimLight.color.setHex(sec.rim);
 
@@ -1116,11 +2430,12 @@
             uColorGold: { value: new THREE.Color(goldColors[i % goldColors.length]) },
             uOpacity: { value: i === 0 ? 0.62 : 0.44 }
           };
-          nebulaUniforms.push(u);
+          const nebTex = bakeShader(NEBULA_FRAG, u, cfg.nebRes, Math.round(cfg.nebRes * 0.62), { BAKE_PREMUL: '' });
           const pl = new THREE.Mesh(
             new THREE.PlaneGeometry(1550, 960),
-            new THREE.ShaderMaterial({ vertexShader: NEBULA_VERT, fragmentShader: NEBULA_FRAG, uniforms: u, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+            new THREE.MeshBasicMaterial({ map: nebTex, transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, depthWrite: false, toneMapped: false, fog: false })
           );
+          nebulaPlanes.push(pl);
           pl.position.set((i - cfg.nebula * 0.5) * 210, (i % 2 === 0 ? 1 : -1) * 75, -740 - i * 145);
           pl.rotation.z = (i - 1.5) * 0.18;
           envGroup.add(pl);
@@ -1129,7 +2444,8 @@
         // Layer 3: Unique Sector Landmark (NASA Relief Planet + Cassini Shadow Rings + Cratered Moon)
         landmarkGroup = new THREE.Group();
         if (sec.landmark === 'PLANET') {
-          landmarkGroup.add(new THREE.Mesh(new THREE.SphereGeometry(152, 64, 48), new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: PLANET_FRAG })));
+          const planetDefs = cfg.planetHQ ? { OCT: 4, PLANET_HQ: '' } : { OCT: 3 };
+          landmarkGroup.add(new THREE.Mesh(new THREE.SphereGeometry(152, cfg.planetHQ ? 64 : 40, cfg.planetHQ ? 48 : 30), new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: PLANET_FRAG, defines: planetDefs })));
           const ring = new THREE.Mesh(
             new THREE.RingGeometry(184, 296, 96),
             new THREE.ShaderMaterial({ vertexShader: RING_VERT, fragmentShader: RING_FRAG, side: THREE.DoubleSide, transparent: true, depthWrite: false })
@@ -1139,7 +2455,7 @@
           // Secondary Cratered Moon catching directional sunlight
           const moon = new THREE.Mesh(
             new THREE.SphereGeometry(34, 36, 28),
-            new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: PLANET_FRAG })
+            new THREE.ShaderMaterial({ vertexShader: PLANET_VERT, fragmentShader: PLANET_FRAG, defines: { OCT: 3 } })
           );
           moon.position.set(-225, 138, 65);
           landmarkGroup.add(moon);
@@ -1407,17 +2723,27 @@
       shieldDome.scale.set(1.15, 0.62, 1.25); shipGroup.add(shieldDome);
 
       // Multi-Layer HDR Beams & Dynamic Muzzle Flash Lighting
-      const muzzleLight = new THREE.PointLight(0x3ef4ff, 0, 32);
-      scene.add(muzzleLight);
+      // 物件池：子彈、敵彈、拖尾、衝擊波、爆炸全部重複利用，避免每發子彈 new Geometry/Material 造成 GC 卡頓
+      function MeshPool(factory) { this.free = []; this.factory = factory; this.made = 0; }
+      MeshPool.prototype.get = function () {
+        let m = this.free.pop();
+        if (!m) { m = this.factory(); this.made++; }
+        m.visible = true; if (!m.parent) scene.add(m);
+        return m;
+      };
+      MeshPool.prototype.put = function (m) { if (!m || !m.visible) return; m.visible = false; this.free.push(m); };
+      function sharedGeo(g) { g.userData.shared = true; return g; }
+      function sharedMat(m) { m.userData.shared = true; return m; }
+
+      const muzzleLight = new THREE.PointLight(0x3ef4ff, 0, 32); // 不加入場景（合併到 shipMuzzleLight），保留 API 相容
       let muzzleTimer = 0;
       const vfxTrails = [];
-      const machRingGeo = new THREE.TorusGeometry(1.05, 0.11, 8, 22);
-      const trailOrbGeo = new THREE.SphereGeometry(0.28, 8, 6);
+      const machRingGeo = sharedGeo(new THREE.TorusGeometry(1.05, 0.11, 8, 22));
+      const trailOrbGeo = sharedGeo(new THREE.SphereGeometry(0.28, 8, 6));
+      const ringPool = new MeshPool(function () { return new THREE.Mesh(machRingGeo, new THREE.MeshBasicMaterial({ color: 0x7df9ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })); });
+      const orbPool = new MeshPool(function () { return new THREE.Mesh(trailOrbGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending, depthWrite: false })); });
 
       function flashMuzzle(pos, colorHex, intensity, centerOnly) {
-        muzzleLight.position.copy(pos);
-        muzzleLight.color.setHex(colorHex);
-        muzzleLight.intensity = intensity || 10.0;
         shipMuzzleLight.color.setHex(colorHex);
         shipMuzzleLight.intensity = (intensity || 10.0) * 1.15;
         muzzleTimer = 0.11;
@@ -1432,19 +2758,20 @@
       }
       function spawnMachRings(origin, count, colorHex) {
         for (let i = 0; i < count; i++) {
-          const m = new THREE.Mesh(machRingGeo, new THREE.MeshBasicMaterial({ color: colorHex || 0x7df9ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+          const m = ringPool.get();
+          m.material.color.setHex(colorHex || 0x7df9ff); m.material.opacity = 0.95;
           m.position.set(origin.x, origin.y, origin.z - 4.5 - i * 8.2);
           m.scale.setScalar(0.55 + i * 0.28);
-          scene.add(m);
-          vfxTrails.push({ mesh: m, age: 0, maxAge: 0.36 + i * 0.05, grow: 1.9 });
+          vfxTrails.push({ mesh: m, pool: ringPool, age: 0, maxAge: 0.36 + i * 0.05, grow: 1.9 });
         }
       }
       function spawnTrailOrb(pos, colorHex, scale) {
-        const m = new THREE.Mesh(trailOrbGeo, new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending, depthWrite: false }));
+        if (vfxTrails.length > 160) return;
+        const m = orbPool.get();
+        m.material.color.setHex(colorHex); m.material.opacity = 0.82;
         m.position.copy(pos);
         m.scale.setScalar(scale || 1.0);
-        scene.add(m);
-        vfxTrails.push({ mesh: m, age: 0, maxAge: 0.34, grow: 1.35 });
+        vfxTrails.push({ mesh: m, pool: orbPool, age: 0, maxAge: 0.34, grow: 1.35 });
       }
 
       const photonBeamMesh = new THREE.Group();
@@ -1469,65 +2796,88 @@
       const bossBeamMesh = new THREE.Mesh(bossBeamGeo, new THREE.MeshBasicMaterial({ color: 0xff2e1f, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending }));
       bossBeamMesh.visible = false; scene.add(bossBeamMesh);
 
-      // Explosions & Shockwaves
+      // Explosions & Shockwaves（全部池化；燈光從固定燈光池借用）
       const explosions = [], shockwaves = [], critPops = [], pickups = [];
-      function spawnExplosion(pos, scale, colorHex) {
-        const g = new THREE.Group(); g.position.copy(pos);
-        const sc = scale || 1.0;
-
-        // 1. Blinding White-Gold Flash Core + Dynamic Illumination Light
+      const expRingGeo = sharedGeo(new THREE.RingGeometry(0.6, 1.35, 28));
+      const shockGeo = sharedGeo(new THREE.SphereGeometry(1, 18, 12));
+      const MAX_SPARKS = 150;
+      const explosionPool = [];
+      function buildExplosionRig() {
+        const g = new THREE.Group();
         const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: muzzleTex, color: 0xfff6d6, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false }));
-        core.scale.set(5.2 * sc, 5.2 * sc, 1);
-        const light = new THREE.PointLight(colorHex || 0xff7a22, 12 * sc, 48 * sc);
-        g.add(core, light);
-
-        // 2. Billowing Multi-Layered Volumetric Fireball Cloud Sprites (5 overlapping rotating fire clouds!)
+        g.add(core);
         const fireballs = [];
         for (let f = 0; f < 5; f++) {
-          const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: fireballTex, color: f === 0 ? 0xffdf8e : (colorHex || 0xff6b1c),
-            transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false
-          }));
-          const ang = (f / 5) * Math.PI * 2;
-          const off = f === 0 ? 0 : (0.8 + Math.random() * 1.1) * sc;
-          sp.position.set(Math.cos(ang) * off, Math.sin(ang) * off, (Math.random() - 0.5) * sc);
-          const initS = (3.4 + Math.random() * 1.6) * sc;
-          sp.scale.set(initS, initS, 1);
-          sp.material.rotation = Math.random() * 6.28;
-          g.add(sp);
-          fireballs.push({ sp: sp, vx: Math.cos(ang)*4.5*sc, vy: Math.sin(ang)*4.5*sc, baseS: initS, spin: (Math.random()-0.5)*1.8 });
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireballTex, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false }));
+          g.add(sp); fireballs.push({ sp: sp, vx: 0, vy: 0, baseS: 1, spin: 0 });
         }
-
-        // 3. Dark Backlit Thermal Smoke Plumes
         const smokes = [];
         for (let sm = 0; sm < 3; sm++) {
           const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokePlumeTex, transparent: true, opacity: 0.72, depthWrite: false }));
-          sp.position.set((Math.random()-0.5)*1.8*sc, (Math.random()-0.5)*1.8*sc, -0.6*sc);
-          const s0 = 4.2 * sc; sp.scale.set(s0, s0, 1); sp.material.rotation = Math.random()*6.28;
-          g.add(sp); smokes.push({ sp: sp, baseS: s0 });
+          g.add(sp); smokes.push({ sp: sp, baseS: 1 });
         }
-
-        // 4. Expanding Tilted Plasma Shockwave Ring + Molten Debris Sparks
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.6*sc, 1.35*sc, 28), new THREE.MeshBasicMaterial({ color: colorHex || 0xff8c2b, side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
-        ring.rotation.set(Math.random()*3, Math.random()*3, 0);
-        const cnt = Math.round(32 * sc), pArr = new Float32Array(cnt*3), vArr = new Float32Array(cnt*3);
-        for (let i = 0; i < cnt; i++) {
-          const spd = (14 + Math.random()*28)*sc, t = Math.random()*6.283, ph = Math.acos(2*Math.random()-1);
-          vArr[i*3]=Math.sin(ph)*Math.cos(t)*spd; vArr[i*3+1]=Math.sin(ph)*Math.sin(t)*spd; vArr[i*3+2]=Math.cos(ph)*spd;
-        }
-        const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
-        const sparks = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xffc864, size: 0.85*sc, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const ring = new THREE.Mesh(expRingGeo, new THREE.MeshBasicMaterial({ color: 0xff8c2b, side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+        const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_SPARKS * 3), 3));
+        const sparks = new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xffc864, size: 0.85, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+        sparks.frustumCulled = false;
         g.add(ring, sparks); scene.add(g);
-
-        explosions.push({ g: g, core: core, light: light, fireballs: fireballs, smokes: smokes, ring: ring, sparks: sparks, vArr: vArr, sc: sc, age: 0, dur: 0.92 * Math.max(0.85, sc) });
+        return { g: g, core: core, fireballs: fireballs, smokes: smokes, ring: ring, sparks: sparks, vArr: new Float32Array(MAX_SPARKS * 3), cnt: 0, slot: null, sc: 1, age: 0, dur: 1 };
+      }
+      function spawnExplosion(pos, scale, colorHex) {
+        const sc = scale || 1.0;
+        let ex = explosionPool.pop();
+        if (!ex) {
+          if (explosions.length >= 36) { ex = explosions.shift(); if (ex.slot && ex.slot.owner === ex) { ex.slot.light.intensity = 0; ex.slot.owner = null; } } else ex = buildExplosionRig();
+        }
+        ex.g.visible = true; ex.g.position.copy(pos);
+        ex.sc = sc; ex.age = 0; ex.dur = 0.92 * Math.max(0.85, sc);
+        ex.core.scale.set(5.2 * sc, 5.2 * sc, 1); ex.core.material.opacity = 1;
+        ex.fireballs.forEach(function (fb, f) {
+          fb.sp.material.color.setHex(f === 0 ? 0xffdf8e : (colorHex || 0xff6b1c));
+          const ang = (f / 5) * Math.PI * 2, off = f === 0 ? 0 : (0.8 + Math.random() * 1.1) * sc;
+          fb.sp.position.set(Math.cos(ang) * off, Math.sin(ang) * off, (Math.random() - 0.5) * sc);
+          fb.baseS = (3.4 + Math.random() * 1.6) * sc; fb.sp.scale.set(fb.baseS, fb.baseS, 1);
+          fb.sp.material.rotation = Math.random() * 6.28; fb.sp.material.opacity = 0.96;
+          fb.vx = Math.cos(ang) * 4.5 * sc; fb.vy = Math.sin(ang) * 4.5 * sc; fb.spin = (Math.random() - 0.5) * 1.8;
+        });
+        ex.smokes.forEach(function (sm) {
+          sm.sp.position.set((Math.random() - 0.5) * 1.8 * sc, (Math.random() - 0.5) * 1.8 * sc, -0.6 * sc);
+          sm.baseS = 4.2 * sc; sm.sp.scale.set(sm.baseS, sm.baseS, 1); sm.sp.material.rotation = Math.random() * 6.28; sm.sp.material.opacity = 0.72;
+        });
+        ex.ring.material.color.setHex(colorHex || 0xff8c2b); ex.ring.material.opacity = 0.95;
+        ex.ring.rotation.set(Math.random() * 3, Math.random() * 3, 0); ex.ring.scale.setScalar(sc);
+        const cnt = Math.min(MAX_SPARKS, Math.round(32 * sc)), attr = ex.sparks.geometry.attributes.position;
+        for (let i = 0; i < cnt; i++) {
+          const spd = (14 + Math.random() * 28) * sc, t = Math.random() * 6.283, ph = Math.acos(2 * Math.random() - 1);
+          ex.vArr[i * 3] = Math.sin(ph) * Math.cos(t) * spd; ex.vArr[i * 3 + 1] = Math.sin(ph) * Math.sin(t) * spd; ex.vArr[i * 3 + 2] = Math.cos(ph) * spd;
+          attr.setXYZ(i, 0, 0, 0);
+        }
+        attr.needsUpdate = true; ex.cnt = cnt; ex.sparks.geometry.setDrawRange(0, cnt);
+        ex.sparks.material.size = 0.85 * sc; ex.sparks.material.opacity = 1;
+        // 只有中大型爆炸才借用動態燈光
+        ex.slot = null;
+        if (sc >= 0.95) {
+          ex.slot = claimExpLight(ex);
+          ex.slot.light.position.copy(pos); ex.slot.light.color.setHex(colorHex || 0xff7a22);
+          ex.slot.light.distance = 48 * sc; ex.slot.light.intensity = 12 * sc;
+        }
+        explosions.push(ex);
         sfx.playExplosion(pos.x, sc);
       }
+      function releaseExplosion(ex) {
+        ex.g.visible = false;
+        if (ex.slot && ex.slot.owner === ex) { ex.slot.light.intensity = 0; ex.slot.owner = null; }
+        ex.slot = null; explosionPool.push(ex);
+      }
+      const shockPool = new MeshPool(function () { return new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); });
       function spawnShockwave(pos, maxScale, colorHex) {
-        const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), new THREE.MeshBasicMaterial({ color: colorHex, wireframe: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending }));
-        m.position.copy(pos); scene.add(m);
+        const m = shockPool.get();
+        m.material.color.setHex(colorHex); m.material.opacity = 0.85; m.scale.setScalar(1);
+        m.position.copy(pos);
         shockwaves.push({ mesh: m, age: 0, dur: 0.55, maxScale: maxScale });
       }
       function showPop(worldPos, text, color) {
+        if (critPops.length > 22) return;
         const p = worldPos.clone().project(camera);
         if (p.z > 1) return;
         const el = document.createElement('div');
@@ -1597,19 +2947,42 @@
       const enemies = [], enemyShots = [], playerProjs = [], missiles = [], eBombs = [];
       let boss = null;
 
+      // 敵機模板快取：幾何體只建一次，每架敵機 clone() 共用幾何、複製材質（受擊閃白用）
+      const enemyTemplates = {};
+      function getEnemyTemplate(type) {
+        if (!enemyTemplates[type]) {
+          const t = buildEnemyMesh(type);
+          t.traverse(function (o) { if (o.geometry) o.geometry.userData.shared = true; });
+          enemyTemplates[type] = t;
+        }
+        return enemyTemplates[type];
+      }
       function spawnEnemy(type, x, y, z) {
         const sec = SECTORS[currentSectorIdx], sp = ENEMY_SPECS[type];
-        const mesh = buildEnemyMesh(type); mesh.position.set(x, y, z); scene.add(mesh);
+        const mesh = getEnemyTemplate(type).clone();
+        const flashMats = [];
+        mesh.traverse(function (o) {
+          if (o.isMesh) {
+            o.material = o.material.clone(); o.material.userData = {};
+            if (o.material.emissive) flashMats.push(o.material);
+          }
+        });
+        mesh.position.set(x, y, z); scene.add(mesh);
         const el = document.createElement('div'); el.className = 'lock-box';
-        el.innerHTML = '<div class="lock-hp"><div class="lock-hp-fill"></div></div><div class="lock-tag">' + sp.tag + '</div>';
+        const hint = weakHint(type);
+        el.innerHTML = '<div class="lock-hp"><div class="lock-hp-fill"></div></div><div class="lock-tag">' + sp.tag + (hint ? ' <span class="weak">▸' + hint + '</span>' : '') + '</div>';
         lockLayer.appendChild(el);
         enemies.push({
-          type: type, spec: sp, mesh: mesh, el: el,
+          type: type, spec: sp, mesh: mesh, el: el, hpEl: el.querySelector('.lock-hp-fill'), flashMats: flashMats, flash: 0, lastHp: -1, lastStun: false,
           hp: Math.round(sp.hp * sec.diff), maxHp: Math.round(sp.hp * sec.diff),
           shield: Math.round(sp.sh * sec.diff), maxShield: Math.round(sp.sh * sec.diff),
           anchorX: x, anchorY: y, phase: Math.random()*6.28,
           fireCd: 0.9 + Math.random()*sp.fcd, dashCd: 2.8, stunTimer: 0
         });
+      }
+      function removeEnemy(e) {
+        scene.remove(e.mesh); e.el.remove();
+        e.mesh.traverse(function (o) { if (o.isMesh && o.material) o.material.dispose(); });
       }
 
       // Upgraded PBR Capital Boss Builder (Unique Silhouette per Sector!)
@@ -1660,9 +3033,7 @@
         emitter.rotation.x = Math.PI/2; emitter.position.set(0, -4.0, 20.5); root.add(emitter);
 
         // Local Dramatic Boss Lighting
-        const bossGlow = new THREE.PointLight(coreHex, 5.5, 58);
-        bossGlow.position.set(0, 2, 16);
-        root.add(bossGlow);
+        bossLight.color.setHex(coreHex); bossLight.intensity = 5.5;
 
         const wpDefs = [
           { tag: '核心 A', pos: [-9.5, 1.4, 8.5] },
@@ -1699,18 +3070,29 @@
       }
 
       function clearBossUI() {
-        if (boss) { boss.wps.forEach(function (w) { w.el.remove(); }); scene.remove(boss.root); boss = null; }
+        if (boss) { boss.wps.forEach(function (w) { w.el.remove(); }); scene.remove(boss.root); disposeObject3D(boss.root, false); boss = null; }
+        bossLight.intensity = 0;
         bossBeamMesh.visible = false;
         document.getElementById('boss-bar-wrap').classList.remove('active');
       }
 
       // Mission State
-      let state = {
-        hull: 100, maxHull: 100, shield: 100, maxShield: 100, boost: 100, heat: 0, overheated: false,
-        weapon: 'PULSE', primaryCd: 0, missileAmmo: 14, empCd: 0, bombCd: 0,
-        ult: 0, novaTimer: 0, score: 0, combo: 1.0, comboTimer: 0,
-        waveIdx: 0, waveQueue: [], spawnDelay: 0.4, shake: 0, paused: false, gameOver: false, victory: false
-      };
+      function freshState(st, weapon) {
+        return {
+          hull: st.maxHull, maxHull: st.maxHull, shield: st.maxShield, maxShield: st.maxShield,
+          boost: 100, heat: 0, overheated: false, weapon: weapon || 'PULSE',
+          primaryCd: 0, missileAmmo: st.maxMissiles, empCd: 0, bombCd: 0,
+          ult: 0, novaTimer: 0, score: 0, combo: 1.0, comboTimer: 0,
+          waveIdx: 0, waveQueue: [], spawnDelay: 0.4, shake: 0, paused: false, gameOver: false, victory: false,
+          // v2 新增
+          perks: {}, perkPending: false,
+          rollCd: 0, rollT: 0, iframe: 0, rollDir: 1,
+          ventT: 0, ventTried: false, ventResult: '', overclock: 0,
+          hazardCd: 7, surgeCd: 13, surgeT: 0, surgeDir: 1, tideCd: 15, tideT: 0, sectorIntro: false
+        };
+      }
+      let state = freshState(getStats(), 'PULSE');
+      let bgPaused = false, hitStop = 0;
 
       function startWave(idx) {
         const sec = SECTORS[currentSectorIdx];
@@ -1721,32 +3103,84 @@
           spawnBoss();
         } else {
           document.getElementById('wave-title').textContent = '第 ' + (idx+1) + '/5 波 // ' + sec.mission;
-          state.waveQueue = WAVE_TEMPLATES[idx].slice();
+          const q = WAVE_TEMPLATES[idx].slice().concat(SECTOR_EXTRA[currentSectorIdx].slice(0, idx));
+          for (let i = q.length - 1; i > 1; i--) { const j = 1 + Math.floor(Math.random() * i); const t = q[i]; q[i] = q[j]; q[j] = t; }
+          state.waveQueue = q;
           state.spawnDelay = 0.4;
         }
+      }
+
+      // 波次強化卡
+      const perkOverlay = document.getElementById('perk-overlay'), perkRow = document.getElementById('perk-row');
+      let perkChoices = [], perkNextWave = 0;
+      function offerPerks(nextWave) {
+        state.perkPending = true; state.paused = true; perkNextWave = nextWave;
+        touchFire = false; touchBoost = false; shieldActive = false; sfx.beamStop();
+        const pool = PERKS.slice();
+        perkChoices = [];
+        while (perkChoices.length < 3 && pool.length) perkChoices.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+        document.getElementById('perk-head').textContent = '第 ' + nextWave + ' 波清除 // 選擇一項戰術強化';
+        perkRow.innerHTML = '';
+        perkChoices.forEach(function (pk, i) {
+          const lv = perkLv(pk.id);
+          const b = document.createElement('button'); b.className = 'perk-card';
+          b.innerHTML = '<div class="pk-cat" style="color:' + pk.col + '">' + pk.cat + (lv ? ' • 已持有 Lv' + lv : '') + '</div><div class="pk-name">' + pk.name + '</div><div class="pk-desc">' + pk.desc + '</div><div class="pk-key">按 ' + (i + 1) + ' 選擇</div>';
+          b.addEventListener('click', function () { choosePerk(i); });
+          perkRow.appendChild(b);
+        });
+        perkOverlay.classList.add('open');
+        radioSay('HQ', '波次清除，補給艦送來改裝套件，挑一項裝上去！', true);
+        sfx.tone(520, 1040, 0.25, 'sine', 0.07);
+      }
+      function choosePerk(i) {
+        if (!state.perkPending || !perkChoices[i]) return;
+        const pk = perkChoices[i];
+        state.perks[pk.id] = (state.perks[pk.id] || 0) + 1;
+        if (pk.id === 'missile_rack') state.missileAmmo = getStats().maxMissiles;
+        state.perkPending = false; state.paused = false;
+        perkOverlay.classList.remove('open');
+        vibrate([15, 15, 25]); sfx.tone(440, 880, 0.18, 'sine', 0.08);
+        showToast('已裝備強化：' + pk.name);
+        renderPerkList();
+        lastTime = performance.now();
+        startWave(perkNextWave);
+      }
+      function renderPerkList() {
+        const el = document.getElementById('perk-list');
+        el.textContent = Object.keys(state.perks).map(function (id) {
+          const pk = PERKS.filter(function (p) { return p.id === id; })[0];
+          return pk.name + (state.perks[id] > 1 ? 'x' + state.perks[id] : '');
+        }).join(' • ');
+      }
+
+      function releaseCombatObjects() {
+        enemies.forEach(removeEnemy); enemies.length = 0;
+        enemyShots.forEach(function (s) { s.pool.put(s.mesh); }); enemyShots.length = 0;
+        playerProjs.forEach(function (p) { p.pool.put(p.mesh); }); playerProjs.length = 0;
+        missiles.forEach(function (m) { missilePool.put(m.mesh); }); missiles.length = 0;
+        eBombs.forEach(function (b) { bombPool.put(b.mesh); }); eBombs.length = 0;
+        pickups.forEach(function (p) { pickupPool.put(p.mesh); }); pickups.length = 0;
+        hazards.forEach(function (h) { h.pool.put(h.mesh); }); hazards.length = 0;
+        vfxTrails.forEach(function (t) { t.pool.put(t.mesh); }); vfxTrails.length = 0;
+        while (explosions.length) releaseExplosion(explosions.pop());
+        shockwaves.forEach(function (s) { shockPool.put(s.mesh); }); shockwaves.length = 0;
+        critPops.forEach(function (c) { c.el.remove(); }); critPops.length = 0;
       }
 
       function deploySector(sectorIdx) {
         currentSectorIdx = Math.max(0, Math.min(SECTORS.length - 1, sectorIdx));
         const sec = SECTORS[currentSectorIdx], st = getStats();
-        enemies.forEach(function (e) { scene.remove(e.mesh); e.el.remove(); }); enemies.length = 0;
-        enemyShots.forEach(function (s) { scene.remove(s.mesh); }); enemyShots.length = 0;
-        playerProjs.forEach(function (p) { scene.remove(p.mesh); }); playerProjs.length = 0;
-        missiles.forEach(function (m) { scene.remove(m.mesh); }); missiles.length = 0;
-        eBombs.forEach(function (b) { scene.remove(b.mesh); }); eBombs.length = 0;
-        pickups.forEach(function (p) { scene.remove(p.mesh); }); pickups.length = 0;
+        releaseCombatObjects();
         clearBossUI();
+        sfx.beamStop();
 
         buildEnvironment(TIERS[currentTier], sec);
+        buildSectorProps(sec);
         document.getElementById('sector-tag').textContent = sec.code + ' // ' + sec.name;
-        state = {
-          hull: st.maxHull, maxHull: st.maxHull, shield: st.maxShield, maxShield: st.maxShield,
-          boost: 100, heat: 0, overheated: false, weapon: state.weapon,
-          primaryCd: 0, missileAmmo: st.maxMissiles, empCd: 0, bombCd: 0,
-          ult: 0, novaTimer: 0, score: 0, combo: 1.0, comboTimer: 0,
-          waveIdx: 0, waveQueue: [], spawnDelay: 0.4, shake: 0, paused: false, gameOver: false, victory: false
-        };
-        shipGroup.position.set(0, 0, 0);
+        state = freshState(st, state.weapon);
+        renderPerkList();
+        perkOverlay.classList.remove('open');
+        shipGroup.position.set(0, 0, 0); shipGroup.rotation.set(0, 0, 0);
         document.getElementById('end-overlay').classList.remove('open');
         closeHub();
         const wo = document.getElementById('warp-overlay');
@@ -1755,73 +3189,187 @@
         wo.classList.add('active');
         sfx.tone(95, 520, 0.65, 'sine', 0.09);
         setTimeout(function () { wo.classList.remove('active'); }, 950);
-        startWave(0); radioSay('WSO', '先鋒號已脫離母艦甲板！前方雷達掃到敵方先遣隊，武器系統交給我，你負責閃躲！', true);
+        startWave(0); radioSay('WSO', SECTOR_BRIEF[currentSectorIdx], true);
       }
 
+      // 各星域專屬機制
+      const SECTOR_BRIEF = [
+        '先鋒號已脫離母艦甲板！前方雷達掃到敵方先遣隊，武器系統交給我，你負責閃躲！',
+        '進入小行星帶！注意紅色警示的隕石流，可以擊碎，也可以翻滾穿過去！',
+        '黑日重力異常！重力潮來的時候機體會被往一側拉，記得反推搖桿！',
+        '艦隊墳場到了，那些漂浮的殘骸能擋子彈，躲在後面打游擊！',
+        '泰坦之門能量潮汐！潮汐期間火力大增，但武器過熱也會加倍，小心控溫！'
+      ];
+      const hazards = [];
+      const meteorGeo = sharedGeo(new THREE.IcosahedronGeometry(1.0, 1));
+      const meteorMat = sharedMat(new THREE.MeshStandardMaterial({ color: 0x8a5a3c, roughness: 0.85, metalness: 0.2, emissive: 0xff4a1a, emissiveIntensity: 0.55 }));
+      const meteorPool = new MeshPool(function () { return new THREE.Mesh(meteorGeo, meteorMat); });
+      const coverGeo = sharedGeo(new THREE.BoxGeometry(1, 1, 1));
+      let coverMat = null, coverSlabs = [];
+      function buildSectorProps(sec) {
+        coverSlabs.forEach(function (c) { scene.remove(c.mesh); }); coverSlabs = [];
+        if (sec.landmark === 'DERELICT') {
+          if (!coverMat) coverMat = sharedMat(new THREE.MeshStandardMaterial({ map: pbrBoss.map, bumpMap: pbrBoss.bumpMap, bumpScale: 0.3, roughness: 0.6, metalness: 0.8, emissive: 0x2ce8ff, emissiveMap: pbrBoss.emissiveMap, emissiveIntensity: 0.6 }));
+          [[-9, 2, -48], [8, -3, -70], [0, 5, -95]].forEach(function (p, i) {
+            const m = new THREE.Mesh(coverGeo, coverMat);
+            m.scale.set(5.5, 3.2, 2.2); m.position.set(p[0], p[1], p[2]); m.rotation.set(0.1 * i, 0.3 * i, 0.15);
+            scene.add(m);
+            coverSlabs.push({ mesh: m, baseX: p[0], phase: i * 2.1, hp: 260 });
+          });
+        }
+        const ev = document.getElementById('sector-event'); ev.classList.remove('show'); ev.textContent = '';
+      }
+      function setSectorEvent(text) {
+        const ev = document.getElementById('sector-event');
+        if (text) { ev.textContent = text; ev.classList.add('show'); } else ev.classList.remove('show');
+      }
+      function spawnMeteor() {
+        const m = meteorPool.get();
+        const s = 1.4 + Math.random() * 1.6; m.scale.setScalar(s);
+        m.position.set(shipGroup.position.x + (Math.random() - 0.5) * 14, shipGroup.position.y + (Math.random() - 0.5) * 8, -150);
+        hazards.push({ mesh: m, pool: meteorPool, vel: new THREE.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 3, 62 + Math.random() * 18), r: s * 1.1, hp: 40, spin: new THREE.Vector3(Math.random() * 2, Math.random() * 2, 0) });
+      }
+      function updateSectorMechanics(dt, nowSec) {
+        const sec = SECTORS[currentSectorIdx];
+        if (state.gameOver || state.victory) { state.surgeT = 0; state.tideT = 0; setSectorEvent(''); return; }
+        if (sec.landmark === 'BELT') {
+          state.hazardCd -= dt;
+          if (state.hazardCd <= 0) {
+            const n = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < n; i++) spawnMeteor();
+            state.hazardCd = 6 + Math.random() * 4;
+            showBanner('隕石流接近！', 1100);
+          }
+        } else if (sec.landmark === 'BLACKSUN') {
+          if (state.surgeT > 0) {
+            state.surgeT -= dt;
+            shipGroup.position.x = Math.max(-15, Math.min(15, shipGroup.position.x + state.surgeDir * 9.5 * dt));
+            state.shake = Math.max(state.shake, 0.12);
+            setSectorEvent('重力潮汐：機體被拉向' + (state.surgeDir > 0 ? '右側' : '左側') + ' ' + state.surgeT.toFixed(1) + 's');
+            if (state.surgeT <= 0) setSectorEvent('');
+          } else {
+            state.surgeCd -= dt;
+            if (state.surgeCd <= 0) {
+              state.surgeT = 4.0; state.surgeCd = 12 + Math.random() * 5; state.surgeDir = Math.random() < 0.5 ? -1 : 1;
+              showBanner('黑日重力潮汐爆發！', 1400); vibrate([30, 30, 30]);
+            }
+          }
+        } else if (sec.landmark === 'DERELICT') {
+          coverSlabs.forEach(function (c) { if (!c.mesh.visible) return; c.mesh.position.x = c.baseX + Math.sin(nowSec * 0.35 + c.phase) * 3.5; c.mesh.rotation.y += dt * 0.05; });
+        } else if (sec.landmark === 'TITANGATE') {
+          if (state.tideT > 0) {
+            state.tideT -= dt;
+            setSectorEvent('能量潮汐：火力 +50% / 熱量 x2 ' + state.tideT.toFixed(1) + 's');
+            if (state.tideT <= 0) setSectorEvent('');
+          } else {
+            state.tideCd -= dt;
+            if (state.tideCd <= 0) { state.tideT = 6.0; state.tideCd = 16 + Math.random() * 6; showBanner('泰坦之門能量潮汐湧入！', 1400); }
+          }
+        }
+      }
+      function coverBlocks(pos) {
+        for (let i = 0; i < coverSlabs.length; i++) {
+          const c = coverSlabs[i]; if (!c.mesh.visible) continue;
+          const cp = c.mesh.position, sc = c.mesh.scale;
+          if (Math.abs(pos.x - cp.x) < sc.x * 0.55 && Math.abs(pos.y - cp.y) < sc.y * 0.55 && Math.abs(pos.z - cp.z) < sc.z * 0.6 + 1) return c;
+        }
+        return null;
+      }
+
+      const pickupGeo = sharedGeo(new THREE.OctahedronGeometry(0.68, 0)), pickupMat = sharedMat(new THREE.MeshBasicMaterial({ color: 0x4effa8 }));
+      const pickupPool = new MeshPool(function () { return new THREE.Mesh(pickupGeo, pickupMat); });
       function spawnPickup(pos, cr, xp) {
-        const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.68, 0), new THREE.MeshBasicMaterial({ color: 0x4effa8 }));
-        m.position.copy(pos); scene.add(m);
+        const m = pickupPool.get();
+        m.position.copy(pos);
         pickups.push({ mesh: m, cr: cr, xp: xp, life: 9.0 });
       }
 
-      function damageEnemy(e, dmg, critChance, shieldMult, isEmp) {
+      // 武器加成（強化卡 / 超頻 / 能量潮汐）
+      function weaponMult(src) {
+        let m = 1;
+        if (src === 'PLASMA') m *= 1 + 0.15 * perkLv('plasma_wide');
+        if (src === 'PHOTON_BEAM') m *= 1 + 0.35 * perkLv('photon_focus');
+        if (state.overclock > 0) m *= 1.25;
+        if (state.tideT > 0) m *= 1.5;
+        return m;
+      }
+      function critBonus() { return 0.10 * perkLv('crit_calib'); }
+      function critDmg() { return 1.65 + 0.2 * perkLv('crit_calib'); }
+
+      function damageEnemy(e, dmg, critChance, shieldMult, isEmp, src) {
         const st = getStats();
-        const crit = Math.random() < (critChance || 0.15);
-        let tot = dmg * st.dmgMult * (crit ? 1.65 : 1.0);
+        const crit = Math.random() < ((critChance || 0.15) + critBonus());
+        const weak = (src && WEAK[e.type][src]) || 1;
+        let tot = dmg * st.dmgMult * weaponMult(src) * weak * (crit ? critDmg() : 1.0);
+        const hadShield = e.shield > 0;
         if (e.shield > 0) {
           const sh = Math.min(e.shield, tot * (shieldMult || 1.0));
           e.shield -= sh; tot = Math.max(0, tot - sh / (shieldMult || 1.0));
         }
         e.hp -= tot;
+        e.flash = 0.09;
         if (isEmp) e.stunTimer = 3.5;
-        if (crit) showPop(e.mesh.position, '暴擊 ' + Math.round(dmg*st.dmgMult*1.65), '#ffb03a');
-        state.ult = Math.min(100, state.ult + (e.hp <= 0 ? 10 : 1.4));
+        const t = performance.now();
+        if (crit) showPop(e.mesh.position, '暴擊 ' + Math.round(dmg * st.dmgMult * weak * critDmg()), '#ffb03a');
+        else if (weak > 1.2 && (!e.lastWeakPop || t - e.lastWeakPop > 650)) { e.lastWeakPop = t; showPop(e.mesh.position, '弱點！', '#4effa8'); }
+        else if (weak < 0.9 && (!e.lastWeakPop || t - e.lastWeakPop > 1200)) { e.lastWeakPop = t; showPop(e.mesh.position, '抗性', '#86a0b8'); }
+        if (src) sfx.hit(hadShield ? 'shield' : (weak > 1.2 ? 'weak' : 'hull'));
+        state.ult = Math.min(100, state.ult + (e.hp <= 0 ? 10 : 1.4) * (1 + 0.4 * perkLv('ult_charge')));
         if (e.hp <= 0) {
           spawnExplosion(e.mesh.position, e.type === 'DESTROYER' ? 1.85 : (e.type === 'ELITE' ? 1.5 : 1.0), e.type === 'ELITE' ? 0xff33aa : 0xff8c2b);
           spawnPickup(e.mesh.position, e.spec.cr, e.spec.xp);
           state.combo = Math.min(8.0, +(state.combo + 0.25).toFixed(2)); state.comboTimer = 5.5;
           state.score += Math.round(e.spec.score * state.combo);
+          if (perkLv('vampire')) { state.hull = Math.min(state.maxHull, state.hull + 4 * perkLv('vampire')); state.shield = Math.min(state.maxShield, state.shield + 6 * perkLv('vampire')); }
+          if (e.type === 'ELITE' || e.type === 'DESTROYER') { hitStop = Math.max(hitStop, 0.07); state.shake = Math.min(1, state.shake + 0.22); vibrate([30, 15, 40]); }
           saveData.totalKills++;
           if (state.score > saveData.highScore) saveData.highScore = state.score;
           checkProgression(0);
-          scene.remove(e.mesh); e.el.remove();
+          removeEnemy(e);
           return true;
         }
         return false;
       }
 
-      function damageBoss(hitPos, dmg, critChance) {
+      function damageBoss(hitPos, dmg, critChance, src) {
         if (!boss || boss.dying) return false;
-        const st = getStats(), crit = Math.random() < (critChance || 0.15);
-        let applied = dmg * st.dmgMult * (crit ? 1.55 : 1.0);
+        const st = getStats(), crit = Math.random() < ((critChance || 0.15) + critBonus());
+        let applied = dmg * st.dmgMult * weaponMult(src) * (crit ? 1.55 : 1.0);
         let hitWP = null;
         for (let i = 0; i < boss.wps.length; i++) {
           const wp = boss.wps[i]; if (wp.destroyed) continue;
           const wPos = new THREE.Vector3(); wp.mesh.getWorldPosition(wPos);
           if (hitPos.distanceTo(wPos) < 5.0) { hitWP = wp; break; }
         }
+        boss.flash = 0.08;
         if (hitWP) {
-          hitWP.hp -= applied * 1.45; boss.hp -= applied * 1.45;
-          showPop(hitPos, '弱點暴擊 ' + Math.round(applied*1.45), '#ff9c2b');
+          const wm = (src === 'RAILGUN' || src === 'PHOTON_BEAM') ? 1.25 : 1.0;
+          hitWP.hp -= applied * 1.45 * wm; boss.hp -= applied * 1.45 * wm;
+          if (src) sfx.hit('weak');
+          const t = performance.now();
+          if (crit || !boss.lastPop || t - boss.lastPop > 220) { boss.lastPop = t; showPop(hitPos, '弱點暴擊 ' + Math.round(applied*1.45*wm), '#ff9c2b'); }
           if (hitWP.hp <= 0) {
             hitWP.destroyed = true; hitWP.mesh.material.color.setHex(0x201818); hitWP.el.style.display = 'none';
             const wpPos = new THREE.Vector3(); hitWP.mesh.getWorldPosition(wpPos);
             spawnExplosion(wpPos, 2.5, boss.coreHex);
             boss.hp = Math.max(1, boss.hp - 240);
+            hitStop = Math.max(hitStop, 0.1);
             state.shake = Math.min(1, state.shake + 0.65); state.score += 1200;
             showBanner('反應爐弱點已摧毀！', 1800); radioSay('WSO', '漂亮！一座反應爐直接殉爆，繼續猛攻剩下的核心！', true); vibrate([60, 25, 85]);
           }
-        } else { boss.hp -= applied * 0.72; }
-        state.ult = Math.min(100, state.ult + 1.2);
+        } else { boss.hp -= applied * 0.72; if (src) sfx.hit('hull'); }
+        state.ult = Math.min(100, state.ult + 1.2 * (1 + 0.4 * perkLv('ult_charge')));
         const ratio = boss.hp / boss.maxHp;
         const newPhase = ratio <= 0.30 ? 3 : (ratio <= 0.65 ? 2 : 1);
         if (newPhase > boss.phase) {
           boss.phase = newPhase;
           showBanner(SECTORS[currentSectorIdx].boss + ' — 進入第 ' + newPhase + ' 階段', 2200);
           spawnShockwave(boss.root.position.clone(), 44, boss.coreHex);
+          radioSay('HQ', newPhase === 2 ? '目標進入第二階段，主砲開始充能，注意閃避光束！' : '敵艦瀕臨崩潰，火力全開，把它送回老家！', true);
         }
         if (boss.hp <= 0 && !boss.dying) {
           boss.hp = 0; boss.dying = true; boss.deathTimer = 2.4; bossBeamMesh.visible = false;
+          hitStop = Math.max(hitStop, 0.18);
           showBanner('頭目主反應爐熔毀倒數！', 2200);
         }
         return true;
@@ -1829,13 +3377,18 @@
 
       function damagePlayer(amount) {
         if (state.gameOver || state.victory) return;
+        if (state.iframe > 0) return 'dodged';
+        const hadShield = state.shield > 0;
         if (shieldActive && state.shield > 0) {
           state.shield = Math.max(0, state.shield - amount * 0.8);
-          shieldUniforms.uImpact.value = 1.0; sfx.tone(420, 210, 0.14, 'sine', 0.08); vibrate([16, 20, 16]); return;
+          shieldUniforms.uImpact.value = 1.0; sfx.hit('shield'); vibrate([16, 20, 16]);
+          if (hadShield && state.shield <= 0 && perkLv('shield_nova')) fireEMP(true);
+          return;
         }
         if (state.shield > 0) {
           const abs = Math.min(state.shield, amount);
           state.shield -= abs; shieldUniforms.uImpact.value = 1.0; amount -= abs;
+          if (hadShield && state.shield <= 0 && perkLv('shield_nova')) fireEMP(true);
         }
         if (amount > 0) {
           state.hull = Math.max(0, state.hull - amount);
@@ -1845,7 +3398,9 @@
           if (state.hull > 0 && state.hull < state.maxHull * 0.35) radioSay('WSO', '左翼裝甲紅燈警告！先撐起六角護盾撐過這波彈幕！', false);
           if (state.hull <= 0) {
             state.gameOver = true;
+            sfx.beamStop();
             spawnExplosion(shipGroup.position, 2.0, 0xff3b4e);
+            radioSay('HQ', '先鋒號訊號消失！救援艇立即出動，撐住！', true);
             document.getElementById('end-title').textContent = '艦體結構毀損 — 任務失敗';
             document.getElementById('end-title').style.color = '#ff3b4e';
             document.getElementById('end-stats').textContent = '總分 ' + state.score.toLocaleString() + ' • 持有信用點 ' + saveData.credits;
@@ -1855,86 +3410,153 @@
         }
       }
 
-      // Weapons Firing
-      const boltGeo = new THREE.CylinderGeometry(0.09, 0.09, 2.8, 8); boltGeo.rotateX(Math.PI/2);
-      const plasmaGeo = new THREE.SphereGeometry(0.45, 10, 8);
-      const railGeo = new THREE.CylinderGeometry(0.14, 0.14, 9.5, 8); railGeo.rotateX(Math.PI/2);
+      // Weapons Firing（共用幾何/材質 + 物件池 + 輔助瞄準）
+      function addMat(color, opacity, wire) { return sharedMat(new THREE.MeshBasicMaterial({ color: color, transparent: opacity < 1, opacity: opacity, wireframe: !!wire, blending: THREE.AdditiveBlending, depthWrite: false })); }
+      const boltGeo = sharedGeo(new THREE.CylinderGeometry(0.09, 0.09, 2.8, 8).rotateX(Math.PI/2));
+      const pulseGlowGeo = sharedGeo(new THREE.CylinderGeometry(0.24, 0.24, 3.4, 8).rotateX(Math.PI/2));
+      const burstGlowGeo = sharedGeo(new THREE.CylinderGeometry(0.22, 0.22, 3.2, 8).rotateX(Math.PI/2));
+      const plasmaGeo = sharedGeo(new THREE.SphereGeometry(0.45, 10, 8));
+      const plasmaGlowGeo = sharedGeo(new THREE.SphereGeometry(0.92, 12, 10));
+      const plasmaCageGeo = sharedGeo(new THREE.IcosahedronGeometry(1.15, 0));
+      const railGeo = sharedGeo(new THREE.CylinderGeometry(0.14, 0.14, 9.5, 8).rotateX(Math.PI/2));
+      const railGlowGeo = sharedGeo(new THREE.CylinderGeometry(0.42, 0.42, 12.0, 10).rotateX(Math.PI/2));
+      const M = {
+        white: addMat(0xffffff, 1), pulseGlow: addMat(0x3ef4ff, 0.55), burstCore: addMat(0xeafff5, 1), burstGlow: addMat(0x55ffb8, 0.55),
+        plasmaCore: addMat(0xfff3c4, 1), plasmaGlow: addMat(0xff7718, 0.58), plasmaCage: addMat(0xffb03a, 0.75, true),
+        railGlow: addMat(0x3ef4ff, 0.62), shardGlow: addMat(0x82faff, 0.7)
+      };
+      function grp() { const g = new THREE.Group(); for (let i = 0; i < arguments.length; i += 2) g.add(new THREE.Mesh(arguments[i], arguments[i + 1])); return g; }
+      const projPools = {
+        PULSE:   new MeshPool(function () { return grp(boltGeo, M.white, pulseGlowGeo, M.pulseGlow); }),
+        BURST:   new MeshPool(function () { return grp(boltGeo, M.burstCore, burstGlowGeo, M.burstGlow); }),
+        PLASMA:  new MeshPool(function () { return grp(plasmaGeo, M.plasmaCore, plasmaGlowGeo, M.plasmaGlow, plasmaCageGeo, M.plasmaCage); }),
+        RAILGUN: new MeshPool(function () { return grp(railGeo, M.white, railGlowGeo, M.railGlow); }),
+        SHARD:   new MeshPool(function () { return grp(boltGeo, M.white, pulseGlowGeo, M.shardGlow); })
+      };
+      function fireBolt(kind, x, y, z, vx, vy, vz, o) {
+        const pool = projPools[kind], g = pool.get();
+        g.position.set(x, y, z); g.rotation.set(0, 0, 0);
+        const p = { mesh: g, pool: pool, vx: vx, vy: vy || 0, vz: vz, dmg: o.dmg, crit: o.crit, splash: o.splash || 0, pierce: !!o.pierce, trailColor: o.trail, spin: !!o.spin, life: o.life, src: o.src, hitSet: o.pierce ? [] : null };
+        if (vx || vy) g.lookAt(x + vx, y + (vy || 0), z + vz);
+        playerProjs.push(p);
+        return p;
+      }
+      // 輔助瞄準：找前方最近目標，給子彈一個剛好命中的橫向速度
+      const _aimTmp = new THREE.Vector3();
+      function assistVel(x, y, z, speed) {
+        if (!settings.aimAssist) return null;
+        let best = null, bestD = 7.5;
+        for (let i = 0; i < enemies.length; i++) {
+          const p = enemies[i].mesh.position; if (p.z >= z - 4) continue;
+          const d = Math.hypot(p.x - x, p.y - y); if (d < bestD) { bestD = d; best = p; }
+        }
+        if (boss && !boss.dying && boss.introTimer <= 0) {
+          boss.wps.forEach(function (w) { if (w.destroyed) return; w.mesh.getWorldPosition(_aimTmp); const d = Math.hypot(_aimTmp.x - x, _aimTmp.y - y); if (d < bestD + 3) { bestD = d - 3; best = _aimTmp.clone(); } });
+        }
+        if (!best) return null;
+        const t = Math.max(0.05, (z - best.z) / speed);
+        return { vx: Math.max(-60, Math.min(60, (best.x - x) / t)), vy: Math.max(-40, Math.min(40, (best.y - y) / t)) };
+      }
+      function heatMult(src) {
+        let m = Math.max(0.5, 1 - 0.25 * perkLv('heat_fins'));
+        if (src === 'PHOTON_BEAM') m *= Math.max(0.55, 1 - 0.15 * perkLv('photon_focus'));
+        if (state.tideT > 0) m *= 2;
+        return m;
+      }
+      function triggerOverheat() {
+        if (state.overheated) return;
+        state.overheated = true; state.ventT = 0; state.ventTried = false; state.ventResult = '';
+        photonBeamMesh.visible = false;
+        sfx.tone(260, 90, 0.35, 'square', 0.06);
+        radioSay('WSO', '武器過熱！看準綠區按射擊，手動排熱！', false);
+      }
+      function ventZone() { return { a: 0.58, b: Math.min(0.96, 0.58 + 0.16 + 0.06 * perkLv('heat_fins')) }; }
+      function ventNeedle() { return (state.ventT % 1.1) / 1.1; }
+      function tryVent() {
+        if (!state.overheated || state.ventTried || state.paused || state.gameOver) return false;
+        state.ventTried = true;
+        const pos = ventNeedle(), z = ventZone();
+        if (pos >= z.a && pos <= z.b) {
+          state.heat = 0; state.overheated = false; state.overclock = 4.0; state.ventResult = 'ok';
+          showPop(shipGroup.position, '完美散熱！超頻 +25%', '#4effa8');
+          sfx.tone(600, 1800, 0.2, 'sine', 0.09); sfx.tone(900, 2400, 0.25, 'triangle', 0.05); vibrate([20, 10, 30]);
+          radioSay('WSO', '完美散熱！武器超頻四秒，打爆它們！', true);
+        } else {
+          state.ventResult = 'miss';
+          sfx.tone(300, 110, 0.22, 'square', 0.06); vibrate([40]);
+          showBanner('散熱失誤 — 冷卻延遲', 900);
+        }
+        return true;
+      }
+      function tryRoll() {
+        if (state.gameOver || state.victory || state.paused || state.rollCd > 0 || state.boost < 18) return;
+        state.rollCd = 1.6 * Math.max(0.4, 1 - 0.4 * perkLv('roll_master'));
+        state.rollT = 0.42; state.iframe = 0.34; state.boost -= 18;
+        state.rollDir = lastIx > 0.15 ? 1 : (lastIx < -0.15 ? -1 : (shipGroup.position.x > 0 ? -1 : 1));
+        if (sfx.ok()) { const t = sfx.ctx.currentTime, out = sfx.makePan(state.rollDir * 0.5, 0.2); sfx.noise(t, 0.32, 'bandpass', 500, 2600, 1.6, 0.2, out, 0.03); sfx.osc('sine', 240, 520, t, 0.25, out, 0.06, 0.02); }
+        vibrate(22);
+      }
 
       function firePrimary(dt) {
         if (state.overheated || state.gameOver || state.victory || state.paused) { photonBeamMesh.visible = false; return; }
-        const spec = WEAPONS[state.weapon];
-        if (state.weapon === 'PHOTON_BEAM') {
+        const spec = WEAPONS[state.weapon], W = state.weapon;
+        const sx = shipGroup.position.x, sy = shipGroup.position.y, sz = shipGroup.position.z;
+        if (W === 'PHOTON_BEAM') {
           photonBeamMesh.visible = true;
-          photonBeamMesh.position.set(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 106);
-          state.heat = Math.min(100, state.heat + spec.heat * dt);
-          if (state.heat >= 100) { state.overheated = true; photonBeamMesh.visible = false; }
+          photonBeamMesh.position.set(sx, sy, sz - 106);
+          state.heat = Math.min(100, state.heat + spec.heat * heatMult(W) * dt);
+          sfx.beamStart(); sfx.beamUpdate(state.heat);
+          if (state.heat >= 100) { triggerOverheat(); return; }
           if (state.primaryCd <= 0) {
-            state.primaryCd = 0.08; sfx.tone(520, 480, 0.07, 'sine', 0.04);
+            state.primaryCd = 0.08;
+            const bw = settings.aimAssist ? 1.9 : 1.2;
             for (let i = enemies.length - 1; i >= 0; i--) {
-              if (enemies[i].mesh.position.z < shipGroup.position.z && Math.hypot(enemies[i].mesh.position.x - shipGroup.position.x, enemies[i].mesh.position.y - shipGroup.position.y) < enemies[i].spec.r + 1.2) {
-                if (damageEnemy(enemies[i], spec.dmg * 0.15, spec.crit, 1.1)) enemies.splice(i, 1);
+              if (enemies[i].mesh.position.z < sz && Math.hypot(enemies[i].mesh.position.x - sx, enemies[i].mesh.position.y - sy) < enemies[i].spec.r + bw) {
+                if (damageEnemy(enemies[i], spec.dmg * 0.15, spec.crit, 1.1, false, W)) enemies.splice(i, 1);
               }
             }
-            if (boss && !boss.dying && Math.hypot(boss.root.position.x - shipGroup.position.x, boss.root.position.y - shipGroup.position.y) < 16) {
-              damageBoss(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, boss.root.position.z + 12), spec.dmg * 0.16, spec.crit);
+            if (boss && !boss.dying && Math.hypot(boss.root.position.x - sx, boss.root.position.y - sy) < 16) {
+              damageBoss(new THREE.Vector3(sx, sy, boss.root.position.z + 12), spec.dmg * 0.16, spec.crit, W);
             }
           }
           return;
         }
         photonBeamMesh.visible = false;
         if (state.primaryCd > 0) return;
-        state.primaryCd = spec.cd; state.heat = Math.min(100, state.heat + spec.heat);
-        if (state.heat >= 100) state.overheated = true;
+        const rateMult = (perkLv('combo_frenzy') && state.combo >= 2.0) ? Math.pow(0.77, perkLv('combo_frenzy')) : 1;
+        state.primaryCd = spec.cd * rateMult; state.heat = Math.min(100, state.heat + spec.heat * heatMult(W));
+        if (state.heat >= 100) triggerOverheat();
 
-        if (state.weapon === 'PULSE') {
+        if (W === 'PULSE') {
           [-2.55, 2.55].forEach(function (xo) {
-            const g = new THREE.Group();
-            g.add(
-              new THREE.Mesh(boltGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending })),
-              new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 3.4, 8).rotateX(Math.PI/2), new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending }))
-            );
-            g.position.set(shipGroup.position.x + xo, shipGroup.position.y - 0.18, shipGroup.position.z - 2.3);
-            scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: false, trailColor: 0x3ef4ff, life: 1.2 });
+            const x = sx + xo, y = sy - 0.18, z = sz - 2.3, av = assistVel(x, y, z, spec.speed);
+            fireBolt('PULSE', x, y, z, av ? av.vx : 0, av ? av.vy : 0, -spec.speed, { dmg: spec.dmg, crit: spec.crit, trail: 0x3ef4ff, life: 1.2, src: W });
           });
-          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 2.5), 0x3ef4ff, 6.5); vibrate(8);
+          flashMuzzle(new THREE.Vector3(sx, sy, sz - 2.5), 0x3ef4ff, 6.5); vibrate(8);
           sfx.playWeapon('PULSE');
-        } else if (state.weapon === 'PLASMA') {
-          const g = new THREE.Group();
-          g.add(
-            new THREE.Mesh(plasmaGeo, new THREE.MeshBasicMaterial({ color: 0xfff3c4, blending: THREE.AdditiveBlending })),
-            new THREE.Mesh(new THREE.SphereGeometry(0.92, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff7718, transparent: true, opacity: 0.58, blending: THREE.AdditiveBlending })),
-            new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 0), new THREE.MeshBasicMaterial({ color: 0xffb03a, wireframe: true, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending }))
-          );
-          g.position.set(shipGroup.position.x, shipGroup.position.y - 0.1, shipGroup.position.z - 3.2);
-          scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 11, pierce: false, trailColor: 0xff8c2b, spin: true, life: 1.8 });
-          flashMuzzle(g.position, 0xff8c2b, 9.5); vibrate([18, 12, 22]);
+        } else if (W === 'PLASMA') {
+          const x = sx, y = sy - 0.1, z = sz - 3.2, av = assistVel(x, y, z, spec.speed);
+          const p = fireBolt('PLASMA', x, y, z, av ? av.vx : 0, av ? av.vy : 0, -spec.speed, { dmg: spec.dmg, crit: spec.crit, splash: 11 * (1 + 0.45 * perkLv('plasma_wide')), trail: 0xff8c2b, spin: true, life: 1.8, src: W });
+          flashMuzzle(p.mesh.position, 0xff8c2b, 9.5); vibrate([18, 12, 22]);
           sfx.playWeapon('PLASMA', 0);
-        } else if (state.weapon === 'RAILGUN') {
-          const g = new THREE.Group();
-          g.add(
-            new THREE.Mesh(railGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending })),
-            new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 12.0, 10).rotateX(Math.PI/2), new THREE.MeshBasicMaterial({ color: 0x3ef4ff, transparent: true, opacity: 0.62, blending: THREE.AdditiveBlending }))
-          );
-          g.position.set(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 6.0);
-          scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: 0, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: true, trailColor: 0x82faff, life: 0.72 });
+        } else if (W === 'RAILGUN') {
+          const x = sx, y = sy, z = sz - 6.0, av = assistVel(x, y, z, spec.speed);
+          fireBolt('RAILGUN', x, y, z, av ? av.vx * 0.6 : 0, av ? av.vy * 0.6 : 0, -spec.speed, { dmg: spec.dmg, crit: spec.crit, pierce: true, trail: 0x82faff, life: 0.72, src: W });
           spawnMachRings(shipGroup.position, 5, 0x7df9ff);
-          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 3.5), 0x82faff, 13.0); vibrate([26, 14, 34]);
-          state.shake = Math.min(1, state.shake + 0.36); sfx.tone(1100, 95, 0.24, 'sawtooth', 0.11);
-        } else if (state.weapon === 'BURST') {
+          flashMuzzle(new THREE.Vector3(sx, sy, sz - 3.5), 0x82faff, 13.0); vibrate([26, 14, 34]);
+          state.shake = Math.min(1, state.shake + 0.36); sfx.playWeapon('RAILGUN');
+        } else if (W === 'BURST') {
           [-2.4, -0.8, 0.8, 2.4].forEach(function (xo, idx) {
-            const g = new THREE.Group();
-            g.add(
-              new THREE.Mesh(boltGeo, new THREE.MeshBasicMaterial({ color: 0xeafff5, blending: THREE.AdditiveBlending })),
-              new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 3.2, 8).rotateX(Math.PI/2), new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending }))
-            );
-            g.position.set(shipGroup.position.x + xo, shipGroup.position.y - 0.15, shipGroup.position.z - 2.0 - idx*0.9);
-            scene.add(g); playerProjs.push({ mesh: g, vz: -spec.speed, vx: xo*2.2, dmg: spec.dmg, crit: spec.crit, splash: 0, pierce: false, trailColor: 0x55ffb8, life: 1.1 });
+            const x = sx + xo, y = sy - 0.15, z = sz - 2.0 - idx * 0.9, av = assistVel(x, y, z, spec.speed);
+            fireBolt('BURST', x, y, z, xo * 2.2 + (av ? av.vx * 0.7 : 0), av ? av.vy * 0.7 : 0, -spec.speed, { dmg: spec.dmg, crit: spec.crit, trail: 0x55ffb8, life: 1.1, src: W });
           });
-          flashMuzzle(new THREE.Vector3(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 2.4), 0x55ffb8, 7.0);
+          flashMuzzle(new THREE.Vector3(sx, sy, sz - 2.4), 0x55ffb8, 7.0);
           sfx.playWeapon('BURST');
         }
       }
 
+      const missileGeo = sharedGeo(new THREE.ConeGeometry(0.24, 1.5, 8).rotateX(-Math.PI / 2)), missileMat = sharedMat(new THREE.MeshBasicMaterial({ color: 0xffb03a }));
+      const missilePool = new MeshPool(function () { return new THREE.Mesh(missileGeo, missileMat); });
       function fireMissile(multi) {
         if (state.gameOver || state.victory || state.paused || state.missileAmmo <= 0) return;
         const count = multi ? Math.min(4, state.missileAmmo) : 1;
@@ -1945,19 +3567,20 @@
         }
         for (let i = 0; i < count; i++) {
           state.missileAmmo--;
-          const m = new THREE.Mesh(new THREE.ConeGeometry(0.24, 1.5, 8), new THREE.MeshBasicMaterial({ color: 0xffb03a }));
-          m.rotation.x = -Math.PI/2;
+          const m = missilePool.get();
+          m.rotation.set(0, 0, 0);
           m.position.set(shipGroup.position.x + (i-(count-1)/2)*1.4, shipGroup.position.y-0.4, shipGroup.position.z-1.5);
-          scene.add(m);
           missiles.push({ mesh: m, lock: pool[i % Math.max(1, pool.length)] || null, vel: new THREE.Vector3((i-(count-1)/2)*14, 5, -70), life: 3.6 });
         }
         sfx.playWeapon('MISSILE'); vibrate([20, 15, 25]);
       }
+      function cdMultAll() { return getStats().cdMult * Math.max(0.4, 1 - 0.3 * perkLv('cooldown')); }
 
-      function fireEMP() {
-        if (state.gameOver || state.victory || state.paused || state.empCd > 0) return;
-        state.empCd = 7.0 * getStats().cdMult;
+      function fireEMP(free) {
+        if (state.gameOver || state.victory || state.paused) return;
+        if (!free) { if (state.empCd > 0) return; state.empCd = 7.0 * cdMultAll(); }
         spawnShockwave(shipGroup.position.clone(), 48, 0x3ef4ff); vibrate([35, 20, 50]); sfx.tone(920, 60, 0.5, 'sine', 0.11);
+        if (free) showPop(shipGroup.position, '護盾反衝！', '#4ef4ff');
         for (let i = enemies.length - 1; i >= 0; i--) {
           if (enemies[i].mesh.position.distanceTo(shipGroup.position) < 110) {
             if (damageEnemy(enemies[i], 42, 0.1, 3.0, true)) enemies.splice(i, 1);
@@ -1966,18 +3589,37 @@
         if (boss && !boss.dying) damageBoss(boss.root.position.clone(), 120, 0.1);
       }
 
+      const bombGeo = sharedGeo(new THREE.SphereGeometry(1.1, 14, 12)), bombMat = sharedMat(new THREE.MeshBasicMaterial({ color: 0xb678ff, wireframe: true }));
+      const bombPool = new MeshPool(function () { return new THREE.Mesh(bombGeo, bombMat); });
       function fireEnergyBomb() {
         if (state.gameOver || state.victory || state.paused || state.bombCd > 0) return;
-        state.bombCd = 9.0 * getStats().cdMult;
-        const orb = new THREE.Mesh(new THREE.SphereGeometry(1.1, 14, 12), new THREE.MeshBasicMaterial({ color: 0xb678ff, wireframe: true }));
+        state.bombCd = 9.0 * cdMultAll();
+        const orb = bombPool.get();
         orb.position.set(shipGroup.position.x, shipGroup.position.y, shipGroup.position.z - 4);
-        scene.add(orb); eBombs.push({ mesh: orb, life: 1.55 }); sfx.tone(180, 90, 0.4, 'sine', 0.09);
+        eBombs.push({ mesh: orb, life: 1.55 }); sfx.tone(180, 90, 0.4, 'sine', 0.09);
       }
 
       function fireUltimate() {
         if (state.gameOver || state.victory || state.paused || state.ult < 100) return;
         state.ult = 0; state.novaTimer = 1.7; state.shake = 0.9;
         spawnShockwave(shipGroup.position.clone(), 56, 0x7ef9ff); vibrate([45, 20, 70, 20, 90]); sfx.tone(110, 440, 0.85, 'sawtooth', 0.14);
+        radioSay('WSO', '新星主砲全功率釋放！', true);
+      }
+
+      // 敵彈物件池（依尺寸與顏色共用幾何與材質）
+      const shotPools = {};
+      function getShot(r, color) {
+        const key = r + '_' + color;
+        if (!shotPools[key]) {
+          const g = sharedGeo(new THREE.SphereGeometry(r, 8, 6)), m = sharedMat(new THREE.MeshBasicMaterial({ color: color }));
+          shotPools[key] = new MeshPool(function () { return new THREE.Mesh(g, m); });
+        }
+        const pool = shotPools[key], mesh = pool.get();
+        return { mesh: mesh, pool: pool };
+      }
+      function fireEnemyShot(r, color, pos, vel, dmg, homing, life) {
+        const s = getShot(r, color); s.mesh.position.copy(pos);
+        enemyShots.push({ mesh: s.mesh, pool: s.pool, vel: vel, dmg: dmg, homing: homing, life: life, dodged: false });
       }
 
       // Command Hub UI (Campaign / Hangar / Achievements)
@@ -1998,7 +3640,7 @@
           const unlockBtn = document.createElement('button');
           unlockBtn.className = 'hud-btn amber'; unlockBtn.textContent = '測試模式：解鎖全部五大星域';
           unlockBtn.addEventListener('click', function () { saveData.unlockedSectors = 5; persistSave(); renderHub(); showToast('已解鎖全部五大星域'); vibrate(20); });
-          topAct.appendChild(unlockBtn);
+          if (DEBUG_MODE) topAct.appendChild(unlockBtn);
           hubContent.appendChild(topAct);
 
           const grid = document.createElement('div'); grid.className = 'hub-grid';
@@ -2068,7 +3710,7 @@
           // 攝影機視角卡
           const cCard = document.createElement('div'); cCard.className = 'card-item';
           const camLabels = { COMBAT: '戰鬥跟隨', WIDE: '廣角電影', ORBIT: '環繞展示' };
-          cCard.innerHTML = '<div><div class="card-title">攝影機視角</div><div class="card-sub">目前：' + camLabels[camModes[camIdx]] + '（快速鍵 C）</div></div>';
+          cCard.innerHTML = '<div><div class="card-title">攝影機視角</div><div class="card-sub">目前：' + camLabels[camModes[camIdx]] + '（快速鍵 C）<br>鍵盤：Z 翻滾、V 護盾、Shift 加速、過熱時按空白鍵散熱</div></div>';
           const cBtn = document.createElement('button'); cBtn.className = 'hud-btn active'; cBtn.textContent = '切換視角';
           cBtn.addEventListener('click', function () { cycleCam(); vibrate(12); renderHub(); });
           cCard.appendChild(cBtn); grid.appendChild(cCard);
@@ -2078,8 +3720,30 @@
           hCard.innerHTML = '<div><div class="card-title">手機震動回饋</div><div class="card-sub">開火後座力、護盾受擊、爆炸與碰撞觸覺震動</div></div>';
           const hBtn = document.createElement('button'); hBtn.className = 'hud-btn ' + (hapticsEnabled ? 'active' : 'amber');
           hBtn.textContent = hapticsEnabled ? '震動回饋：開啟' : '震動回饋：關閉';
-          hBtn.addEventListener('click', function () { hapticsEnabled = !hapticsEnabled; if (hapticsEnabled) vibrate([25, 20, 35]); renderHub(); });
+          hBtn.addEventListener('click', function () { hapticsEnabled = !hapticsEnabled; settings.haptics = hapticsEnabled; persistSettings(); if (hapticsEnabled) vibrate([25, 20, 35]); renderHub(); });
           hCard.appendChild(hBtn); grid.appendChild(hCard);
+
+          // v2 開關型設定
+          [
+            ['autoFire', '自動開火', '前方有目標時自動射擊，熱量過高會自動停火保護'],
+            ['aimAssist', '輔助瞄準', '子彈自動修正彈道，飛向準星附近最近的敵機'],
+            ['voice', '無線電語音', '武器官凱文與指揮官琳以語音通話（需開啟音效）'],
+            ['bloom', '泛光特效', '雷射、爆炸與引擎發光 Bloom（效能模式自動關閉）'],
+            ['autoQuality', '自動畫質', '依即時 FPS 自動調整解析度，維持流暢']
+          ].forEach(function (def) {
+            const card = document.createElement('div'); card.className = 'card-item';
+            card.innerHTML = '<div><div class="card-title">' + def[1] + '</div><div class="card-sub">' + def[2] + '</div></div>';
+            const b = document.createElement('button'); const on = !!settings[def[0]];
+            b.className = 'hud-btn ' + (on ? 'active' : 'amber'); b.textContent = def[1] + '：' + (on ? '開啟' : '關閉');
+            b.addEventListener('click', function () {
+              settings[def[0]] = !settings[def[0]]; persistSettings(); vibrate(12);
+              if (def[0] === 'bloom') setupPostFX(TIERS[currentTier]);
+              if (def[0] === 'voice' && !settings.voice) radioVoice.stop();
+              if (def[0] === 'autoQuality' && !settings.autoQuality) setDpr(Math.min(window.devicePixelRatio || 1, TIERS[currentTier].maxDpr));
+              renderHub();
+            });
+            card.appendChild(b); grid.appendChild(card);
+          });
 
           hubContent.appendChild(grid);
         } else {
@@ -2122,20 +3786,22 @@
         commsWho.textContent = sender === 'HQ' ? '艦隊總部・指揮官琳 (HQ)' : '後座武器官・凱文 (WSO)';
         commsMsg.textContent = text;
         commsBox.classList.add('show');
-        sfx.tone(sender === 'HQ' ? 1240 : 1560, 880, 0.045, 'sine', 0.05);
         clearTimeout(commsHideTimer);
+        if (radioVoice.say(sender, text, force)) return; // 語音播放中：由語音結束時收起字幕
+        commsBox.classList.remove('talking');
+        if (sfx.ok()) { sfx.radioOpen(sender === 'HQ'); setTimeout(function () { sfx.radioClose(); }, 380); }
         commsHideTimer = setTimeout(function () { commsBox.classList.remove('show'); }, 4200);
       }
 
       function closeHub() {
         hubOverlay.classList.remove('open');
-        state.paused = false;
+        state.paused = !!state.perkPending;
         // 徹底清除選單期間殘留的按鍵與觸控鎖定，確保回到戰鬥立刻恢復操控！
         Object.keys(keys).forEach(function (k) { keys[k] = false; });
         joy.active = false; joy.id = null; joy.x = 0; joy.y = 0;
         joyKnob.style.transform = 'translate(0,0)';
         touchFire = false; touchBoost = false; shieldActive = false;
-        ['fire-btn', 'boost-btn', 'shield-btn'].forEach(function (id) {
+        ['fire-btn', 'boost-btn', 'shield-btn', 'roll-btn'].forEach(function (id) {
           const el = document.getElementById(id); if (el) el.classList.remove('engaged');
         });
         lastTime = performance.now();
@@ -2143,7 +3809,7 @@
       function openHub(tab) {
         activeHubTab = tab || 'campaign';
         state.paused = true;
-        touchFire = false; touchBoost = false; shieldActive = false;
+        touchFire = false; touchBoost = false; shieldActive = false; sfx.beamStop();
         renderHub();
         hubOverlay.classList.add('open');
       }
@@ -2162,38 +3828,44 @@
       let touchBoost = false, touchFire = false, shieldActive = false;
       const shipVel = new THREE.Vector2(), targetCamPos = new THREE.Vector3(), lookTarget = new THREE.Vector3();
 
-      function applyTier(tier) {
+      let lastIx = 0;
+
+      function applyTier(tier, skipBuild) {
         currentTier = tier; const cfg = TIERS[tier];
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.maxDpr));
+        setDpr(Math.min(window.devicePixelRatio || 1, cfg.maxDpr));
         renderer.toneMappingExposure = cfg.exposure;
         scene.traverse(function (obj) {
           if (obj.material && typeof obj.material.envMapIntensity === 'number') {
             obj.material.envMapIntensity = cfg.envMult;
           }
         });
-        buildEnvironment(cfg, SECTORS[currentSectorIdx]);
+        setupPostFX(cfg);
+        if (!skipBuild) buildEnvironment(cfg, SECTORS[currentSectorIdx]);
         document.querySelectorAll('[data-tier]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tier') === tier); });
       }
 
       document.querySelectorAll('[data-tier]').forEach(function (b) { b.addEventListener('click', function () { applyTier(b.getAttribute('data-tier')); }); });
       function selectWeapon(id) {
-        const wLines = { PULSE: '脈衝雙砲就緒，壓制輕型敵機交給它！', PLASMA: '重電漿砲裝填完畢，準備轟穿重裝甲！', RAILGUN: '磁軌砲高壓電容充能！一發貫穿整排目標！', PHOTON_BEAM: '光子聚焦光束連線，按住持續燒熔弱點！', BURST: '四連發散射模式啟動，清理蜂群超順手！' };
-        if (wLines[id]) radioSay('WSO', wLines[id], false);
+        const wLines = { PULSE: '脈衝雙砲就緒，壓制輕型敵機交給它！', PLASMA: '重電漿砲裝填完畢，專剋護盾艦！', RAILGUN: '磁軌砲高壓電容充能！重甲艦一發貫穿！', PHOTON_BEAM: '光子聚焦光束連線，追得上幽靈機！', BURST: '四連發散射模式啟動，清理偵察蜂群超順手！' };
+        if (wLines[id] && id !== state.weapon) radioSay('WSO', wLines[id], false);
         state.weapon = id;
+        if (id !== 'PHOTON_BEAM') sfx.beamStop();
         document.querySelectorAll('[data-weapon]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-weapon') === id); });
       }
       document.querySelectorAll('[data-weapon]').forEach(function (b) { b.addEventListener('click', function () { selectWeapon(b.getAttribute('data-weapon')); }); });
 
-      document.getElementById('skip-boss-btn').addEventListener('click', function () {
+      const skipBossBtn = document.getElementById('skip-boss-btn');
+      if (DEBUG_MODE) skipBossBtn.style.display = '';
+      skipBossBtn.addEventListener('click', function () {
         if (state.gameOver || state.victory) deploySector(currentSectorIdx);
-        enemies.forEach(function (e) { scene.remove(e.mesh); e.el.remove(); }); enemies.length = 0;
+        enemies.forEach(removeEnemy); enemies.length = 0;
         state.waveQueue = []; startWave(4);
       });
       document.getElementById('btn-missile').addEventListener('click', function () { fireMissile(false); });
       document.getElementById('btn-multi').addEventListener('click', function () { fireMissile(true); });
-      document.getElementById('btn-emp').addEventListener('click', fireEMP);
-      document.getElementById('btn-bomb').addEventListener('click', fireEnergyBomb);
-      document.getElementById('btn-ult').addEventListener('click', fireUltimate);
+      document.getElementById('btn-emp').addEventListener('click', function () { fireEMP(false); });
+      document.getElementById('btn-bomb').addEventListener('click', function () { fireEnergyBomb(); });
+      document.getElementById('btn-ult').addEventListener('click', function () { fireUltimate(); });
       document.getElementById('restart-btn').addEventListener('click', function () { deploySector(currentSectorIdx); });
       document.getElementById('next-sector-btn').addEventListener('click', function () { deploySector(Math.min(SECTORS.length - 1, currentSectorIdx + 1)); });
       document.getElementById('end-hangar-btn').addEventListener('click', function () { document.getElementById('end-overlay').classList.remove('open'); openHub('hangar'); });
@@ -2204,12 +3876,29 @@
       document.getElementById('dismiss-orient').addEventListener('click', function () { orientBar.classList.remove('show'); });
       const boostVignette = document.getElementById('boost-vignette');
       const audioBtn = document.getElementById('audio-btn');
-      audioBtn.addEventListener('click', function () {
-        const on = sfx.toggle(); audioBtn.textContent = on ? '音效開' : '靜音'; audioBtn.classList.toggle('active', on);
+      function syncAudioBtn() { audioBtn.textContent = sfx.enabled ? '音效開' : '靜音'; audioBtn.classList.toggle('active', sfx.enabled); }
+      audioBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        sfx.toggle(); syncAudioBtn();
+        if (!sfx.enabled) radioVoice.stop();
       });
+      // 第一次互動自動啟用音效與語音（瀏覽器規定需使用者手勢）
+      function firstGesture(e) {
+        radioVoice.unlock();
+        if (e && e.target && e.target.closest && e.target.closest('#audio-btn')) sfx.init(); else sfx.unlock();
+        window.removeEventListener('pointerdown', firstGesture, true);
+        window.removeEventListener('keydown', firstGesture, true);
+      }
+      window.addEventListener('pointerdown', firstGesture, true);
+      window.addEventListener('keydown', firstGesture, true);
 
       window.addEventListener('keydown', function (e) {
+        const rep = e.repeat;
         keys[e.code] = true;
+        if (state.perkPending) {
+          if (!rep && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3')) choosePerk(+e.code.slice(5) - 1);
+          return;
+        }
         if (e.code === 'Digit1') selectWeapon('PULSE');
         if (e.code === 'Digit2') selectWeapon('PLASMA');
         if (e.code === 'Digit3') selectWeapon('RAILGUN');
@@ -2217,10 +3906,12 @@
         if (e.code === 'Digit5') selectWeapon('BURST');
         if (e.code === 'KeyQ') fireMissile(false);
         if (e.code === 'KeyE') fireMissile(true);
-        if (e.code === 'KeyF') fireEMP();
+        if (e.code === 'KeyF') fireEMP(false);
         if (e.code === 'KeyR') fireEnergyBomb();
         if (e.code === 'KeyX') fireUltimate();
         if (e.code === 'KeyC') cycleCam();
+        if (e.code === 'KeyZ' && !rep) tryRoll();
+        if (e.code === 'Space' && !rep) { tryVent(); e.preventDefault(); }
         if (e.code === 'Escape') {
           if (hubOverlay.classList.contains('open')) { closeHub(); }
           else openHub('campaign');
@@ -2240,19 +3931,55 @@
       function resetStick() { joy.active=false; joy.id=null; joy.x=0; joy.y=0; joyKnob.style.transform='translate(0,0)'; }
       joyZone.addEventListener('pointerup', resetStick); joyZone.addEventListener('pointercancel', resetStick);
 
-      function bindHold(id, setter) {
+      function bindHold(id, setter, onPress) {
         const el = document.getElementById(id);
-        el.addEventListener('pointerdown', function () { setter(true); el.classList.add('engaged'); vibrate(12); });
-        el.addEventListener('pointerup', function () { setter(false); el.classList.remove('engaged'); });
-        el.addEventListener('pointerleave', function () { setter(false); el.classList.remove('engaged'); });
+        el.addEventListener('pointerdown', function (e) {
+          try { el.setPointerCapture(e.pointerId); } catch (err) {}
+          setter(true); el.classList.add('engaged'); vibrate(12);
+          if (onPress) onPress();
+        });
+        function up() { setter(false); el.classList.remove('engaged'); }
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointercancel', up);
+        el.addEventListener('lostpointercapture', up);
       }
-      bindHold('fire-btn', function (v) { touchFire = v; });
-      bindHold('boost-btn', function (v) { touchBoost = v; });
+      bindHold('fire-btn', function (v) { touchFire = v; }, function () { tryVent(); });
+      // 加速鍵雙擊 = 翻滾
+      let lastBoostTap = 0;
+      bindHold('boost-btn', function (v) { touchBoost = v; }, function () {
+        const t = performance.now(); if (t - lastBoostTap < 280) tryRoll(); lastBoostTap = t;
+      });
       bindHold('shield-btn', function (v) { shieldActive = v; });
+      bindHold('roll-btn', function () {}, function () { tryRoll(); });
 
       window.addEventListener('resize', function () {
         camera.aspect = window.innerWidth / Math.max(1, window.innerHeight);
         camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // 切到背景自動暫停（含音樂、語音），回來時點擊繼續
+      const pauseOverlay = document.getElementById('pause-overlay');
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          bgPaused = true;
+          touchFire = false; touchBoost = false; shieldActive = false;
+          Object.keys(keys).forEach(function (k) { keys[k] = false; });
+          sfx.beamStop(); radioVoice.stop();
+          if (sfx.ctx && sfx.ctx.state === 'running') sfx.ctx.suspend();
+          const inCombat = !state.paused && !state.gameOver && !state.victory;
+          if (inCombat) pauseOverlay.classList.add('open');
+          else bgPaused = false;
+        } else {
+          if (sfx.ctx && sfx.enabled) sfx.ctx.resume();
+          if (!pauseOverlay.classList.contains('open')) bgPaused = false;
+          lastTime = performance.now();
+        }
+      });
+      pauseOverlay.addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+        pauseOverlay.classList.remove('open'); bgPaused = false; lastTime = performance.now();
+        if (sfx.ctx && sfx.enabled) sfx.ctx.resume();
       });
 
       const hullFill = document.getElementById('hull-fill'), hullVal = document.getElementById('hull-val');
@@ -2264,37 +3991,79 @@
       const missileCnt = document.getElementById('missile-cnt'), btnEmp = document.getElementById('btn-emp');
       const btnBomb = document.getElementById('btn-bomb'), btnUlt = document.getElementById('btn-ult'), ultPct = document.getElementById('ult-pct');
       const pilotLvPill = document.getElementById('pilot-lv-pill'), reticleEl = document.getElementById('reticle');
+      const ventUI = document.getElementById('vent-ui'), ventNeedleEl = document.getElementById('vent-needle'), ventZoneEl = document.getElementById('vent-zone'), ventLabel = document.getElementById('vent-label');
+      const rollBtn = document.getElementById('roll-btn');
+      // HUD 節流：文字與數值 10Hz 更新，且只在值改變時寫入 DOM
+      const hudCache = {};
+      function setText(el, key, v) { if (hudCache[key] !== v) { hudCache[key] = v; el.textContent = v; } }
+      function setWidth(el, key, pct) { const v = pct.toFixed(0) + '%'; if (hudCache[key] !== v) { hudCache[key] = v; el.style.width = v; } }
+      function setFlag(el, key, cls, on) { if (hudCache[key] !== on) { hudCache[key] = on; el.classList.toggle(cls, on); } }
+      let hudTimer = 0;
 
       let lastTime = performance.now();
 
+      // 自動開火判斷：前方有目標才開火，熱量過高自動停火保護
+      function autoFireWanted() {
+        if (state.overheated) return false;
+        const W = state.weapon, sx = shipGroup.position.x, sy = shipGroup.position.y;
+        if (state.heat > (W === 'PHOTON_BEAM' ? 80 : 86)) return false;
+        const lane = W === 'PHOTON_BEAM' ? 4.5 : (W === 'BURST' ? 11 : 8.5);
+        for (let i = 0; i < enemies.length; i++) {
+          const p = enemies[i].mesh.position;
+          if (p.z < -6 && p.z > -200 && Math.hypot(p.x - sx, p.y - sy) < lane + enemies[i].spec.r) return true;
+        }
+        if (boss && !boss.dying && boss.introTimer <= 0 && Math.abs(boss.root.position.x - sx) < 15) return true;
+        for (let i = 0; i < hazards.length; i++) { const p = hazards[i].mesh.position; if (p.z < -10 && Math.hypot(p.x - sx, p.y - sy) < 5) return true; }
+        return false;
+      }
+      const _proj = new THREE.Vector3(), _wp = new THREE.Vector3(), YAXIS = new THREE.Vector3(0, 1, 0);
+      function placeLock(el, worldPos) {
+        _proj.copy(worldPos).project(camera);
+        if (_proj.z < 1 && _proj.x > -1.3 && _proj.x < 1.3 && _proj.y > -1.3 && _proj.y < 1.3) {
+          if (el.style.display === 'none') el.style.display = 'block';
+          const x = (_proj.x * 0.5 + 0.5) * window.innerWidth, y = (-_proj.y * 0.5 + 0.5) * window.innerHeight;
+          el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) translate(-50%,-50%)';
+          return true;
+        }
+        if (el.style.display !== 'none') el.style.display = 'none';
+        return false;
+      }
+
       function animate(now) {
         requestAnimationFrame(animate);
-        const dt = Math.min(0.05, (now - lastTime) / 1000);
+        const realDt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
         lastTime = now;
         const nowSec = now * 0.001;
 
-        if (state.paused) {
-          renderer.render(scene, camera);
+        if (state.paused || bgPaused) {
+          renderFrame();
           return;
         }
+        adaptQuality(realDt);
+        // Hit-stop：擊殺重型敵艦 / 摧毀反應爐瞬間短暫慢動作
+        let dt = realDt;
+        if (hitStop > 0) { hitStop -= realDt; dt = realDt * 0.12; }
 
         const st = getStats();
+        const spdMult = st.spdMult * (1 + 0.12 * perkLv('thruster'));
         let ix = joy.active ? joy.x : 0, iy = joy.active ? joy.y : 0;
         if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
         if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
         if (keys['KeyW'] || keys['ArrowUp']) iy += 1;
         if (keys['KeyS'] || keys['ArrowDown']) iy -= 1;
         ix = Math.max(-1, Math.min(1, ix)); iy = Math.max(-1, Math.min(1, iy));
+        lastIx = ix;
 
         const isShieldHeld = shieldActive || !!keys['KeyV'];
         const wantBoost = touchBoost || !!keys['ShiftLeft'] || !!keys['ShiftRight'];
         const boosting = !state.gameOver && !state.victory && wantBoost && state.boost > 4;
 
         if (boosting) state.boost = Math.max(0, state.boost - dt * 32);
-        else state.boost = Math.min(100, state.boost + dt * 20 * st.spdMult);
+        else state.boost = Math.min(100, state.boost + dt * 20 * spdMult * (1 + 0.5 * perkLv('thruster')));
 
         if (isShieldHeld && state.shield > 0 && !state.gameOver) state.shield = Math.max(0, state.shield - dt * 14);
         else if (!state.gameOver) state.shield = Math.min(state.maxShield, state.shield + dt * 9 * (1 + (saveData.upgrades.shield-1)*0.18));
+        if (perkLv('nano_repair') && !state.gameOver) state.hull = Math.min(state.maxHull, state.hull + 1.5 * perkLv('nano_repair') * dt);
 
         shieldUniforms.uTime.value += dt;
         shieldUniforms.uOpacity.value += (((isShieldHeld && state.shield > 1) ? 0.92 : shieldUniforms.uImpact.value * 0.85) - shieldUniforms.uOpacity.value) * Math.min(1, dt * 10);
@@ -2304,20 +4073,37 @@
         state.primaryCd = Math.max(0, state.primaryCd - dt);
         state.empCd = Math.max(0, state.empCd - dt);
         state.bombCd = Math.max(0, state.bombCd - dt);
-        state.heat = Math.max(0, state.heat - (state.overheated ? 26 : 34) * st.coolMult * dt);
-        if (state.overheated && state.heat <= 18) state.overheated = false;
+        state.rollCd = Math.max(0, state.rollCd - dt);
+        state.iframe = Math.max(0, state.iframe - dt);
+        state.overclock = Math.max(0, state.overclock - dt);
+        if (state.overheated) state.ventT += dt;
+        const coolRate = state.overheated ? (state.ventResult === 'miss' ? 15 : 26) : 34;
+        state.heat = Math.max(0, state.heat - coolRate * st.coolMult * dt);
+        if (state.overheated && state.heat <= 18) { state.overheated = false; state.ventResult = ''; }
         if (state.comboTimer > 0) { state.comboTimer -= dt; if (state.comboTimer <= 0) state.combo = 1.0; }
 
         if (!state.gameOver && !state.victory) {
-          const maxSpd = (boosting ? 28 : 20) * st.spdMult;
+          const maxSpd = (boosting ? 28 : 20) * spdMult;
           shipVel.x += (ix * maxSpd - shipVel.x) * Math.min(1, dt * 8.5);
           shipVel.y += (iy * maxSpd * 0.78 - shipVel.y) * Math.min(1, dt * 8.5);
-          shipGroup.position.x = Math.max(-15, Math.min(15, shipGroup.position.x + shipVel.x * dt));
+          let dashX = 0;
+          if (state.rollT > 0) {
+            state.rollT -= dt;
+            dashX = state.rollDir * 34 * dt;
+          }
+          shipGroup.position.x = Math.max(-15, Math.min(15, shipGroup.position.x + shipVel.x * dt + dashX));
           shipGroup.position.y = Math.max(-8.5, Math.min(8.5, shipGroup.position.y + shipVel.y * dt));
-          shipGroup.rotation.z += (-ix * 0.62 - shipGroup.rotation.z) * Math.min(1, dt * 9);
+          if (state.rollT > 0) {
+            shipGroup.rotation.z = -state.rollDir * (1 - state.rollT / 0.42) * Math.PI * 2;
+          } else {
+            if (Math.abs(shipGroup.rotation.z) > Math.PI) shipGroup.rotation.z = 0;
+            shipGroup.rotation.z += (-ix * 0.62 - shipGroup.rotation.z) * Math.min(1, dt * 9);
+          }
           shipGroup.rotation.x += (iy * 0.32 - shipGroup.rotation.x) * Math.min(1, dt * 9);
-          if (touchFire || keys['Space']) firePrimary(dt); else photonBeamMesh.visible = false;
+          const wantFire = touchFire || keys['Space'] || (settings.autoFire && autoFireWanted());
+          if (wantFire) firePrimary(dt); else photonBeamMesh.visible = false;
         } else { photonBeamMesh.visible = false; }
+        if (!photonBeamMesh.visible) sfx.beamStop();
 
         if (state.novaTimer > 0) {
           state.novaTimer -= dt; novaMesh.visible = true;
@@ -2341,6 +4127,8 @@
           c.scale.set(boosting ? 1.25 : 1.0, boosting ? 1.25 : 1.0, (boosting ? 1.95 : 1.0) * pulse);
         });
 
+        updateSectorMechanics(dt, nowSec);
+
         // Wave Spawner
         if (!state.gameOver && !state.victory && !boss) {
           if (state.waveQueue.length > 0) {
@@ -2351,7 +4139,7 @@
               state.spawnDelay = 1.0;
             }
           } else if (enemies.length === 0 && state.waveIdx < 4) {
-            startWave(state.waveIdx + 1);
+            offerPerks(state.waveIdx + 1);
           }
         }
 
@@ -2376,37 +4164,36 @@
               e.fireCd = e.spec.fcd;
               const toP = shipGroup.position.clone().sub(p).normalize();
               if (e.type === 'DESTROYER') {
-                [-0.22,-0.11,0,0.11,0.22].forEach(function (ang) {
-                  const s = new THREE.Mesh(new THREE.SphereGeometry(0.38,8,6), new THREE.MeshBasicMaterial({ color: 0xff6b2b }));
-                  s.position.copy(p); scene.add(s); enemyShots.push({ mesh: s, vel: toP.clone().applyAxisAngle(new THREE.Vector3(0,1,0),ang).multiplyScalar(62), dmg: 15, homing: false, life: 3.4 });
-                });
+                [-0.22,-0.11,0,0.11,0.22].forEach(function (ang) { fireEnemyShot(0.38, 0xff6b2b, p, toP.clone().applyAxisAngle(YAXIS, ang).multiplyScalar(62), 15, false, 3.4); });
               } else if (e.type === 'BOMBER') {
-                const s = new THREE.Mesh(new THREE.SphereGeometry(0.55,10,8), new THREE.MeshBasicMaterial({ color: 0xffaa2b }));
-                s.position.copy(p); scene.add(s); enemyShots.push({ mesh: s, vel: toP.multiplyScalar(42), dmg: 24, homing: true, life: 4.5 });
+                fireEnemyShot(0.55, 0xffaa2b, p, toP.multiplyScalar(42), 24, true, 4.5);
               } else if (e.type === 'ELITE') {
-                [-0.14,0,0.14].forEach(function (ang) {
-                  const s = new THREE.Mesh(new THREE.SphereGeometry(0.32,8,6), new THREE.MeshBasicMaterial({ color: 0xff33aa }));
-                  s.position.copy(p); scene.add(s); enemyShots.push({ mesh: s, vel: toP.clone().applyAxisAngle(new THREE.Vector3(0,1,0),ang).multiplyScalar(80), dmg: 14, homing: false, life: 3.0 });
-                });
+                [-0.14,0,0.14].forEach(function (ang) { fireEnemyShot(0.32, 0xff33aa, p, toP.clone().applyAxisAngle(YAXIS, ang).multiplyScalar(80), 14, false, 3.0); });
               } else {
-                const s = new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6), new THREE.MeshBasicMaterial({ color: 0xff3b4e }));
-                s.position.copy(p); scene.add(s); enemyShots.push({ mesh: s, vel: toP.multiplyScalar(70), dmg: 11, homing: false, life: 3.0 });
+                fireEnemyShot(0.3, 0xff3b4e, p, toP.multiplyScalar(70), 11, false, 3.0);
               }
             }
           }
-          if (p.z > 18) { scene.remove(e.mesh); e.el.remove(); enemies.splice(i, 1); continue; }
-          const pr = p.clone().project(camera);
-          if (pr.z < 1) {
-            e.el.style.display = 'block';
-            e.el.style.left = ((pr.x*0.5+0.5)*window.innerWidth)+'px'; e.el.style.top = ((-pr.y*0.5+0.5)*window.innerHeight)+'px';
-            e.el.querySelector('.lock-hp-fill').style.width = Math.max(0,(e.hp/e.maxHp)*100)+'%';
-            e.el.classList.toggle('stunned', e.stunTimer > 0);
-          } else { e.el.style.display = 'none'; }
+          // 受擊閃白
+          if (e.flash > 0) {
+            e.flash = Math.max(0, e.flash - realDt);
+            const k = e.flash / 0.09;
+            for (let m = 0; m < e.flashMats.length; m++) { e.flashMats[m].emissive.setRGB(k * 1.6, k * 1.6, k * 1.8); }
+            e.mesh.scale.setScalar(1 + k * 0.08);
+          }
+          if (p.z > 18) { removeEnemy(e); enemies.splice(i, 1); continue; }
+          if (placeLock(e.el, p)) {
+            const hpPct = Math.max(0, Math.round((e.hp / e.maxHp) * 100));
+            if (hpPct !== e.lastHp) { e.lastHp = hpPct; e.hpEl.style.width = hpPct + '%'; }
+            const stun = e.stunTimer > 0;
+            if (stun !== e.lastStun) { e.lastStun = stun; e.el.classList.toggle('stunned', stun); }
+          }
         }
 
         // Boss Update
         if (boss) {
           if (boss.spinRing) boss.spinRing.rotation.z += dt * 0.65;
+          bossLight.position.set(boss.root.position.x, boss.root.position.y + 2, boss.root.position.z + 16);
           if (boss.dying) {
             boss.deathTimer -= dt; boss.deathPulseCd -= dt;
             if (boss.deathPulseCd <= 0) {
@@ -2426,6 +4213,8 @@
               if (state.score > saveData.highScore) saveData.highScore = state.score;
               checkProgression(sec.xp);
               clearBossUI(); state.victory = true;
+              sfx.beamStop();
+              radioSay('HQ', '幹得好，先鋒號！' + sec.boss + '確認擊毀，星域已經肅清！', true);
               document.getElementById('end-title').textContent = sec.code + ' 肅清完成 — 已擊毀 ' + sec.boss;
               document.getElementById('end-title').style.color = '#2ce8ff';
               document.getElementById('end-stats').textContent = '總分 ' + state.score.toLocaleString() + ' • +' + sec.cr + ' 信用點 • +' + sec.xp + ' 經驗';
@@ -2444,11 +4233,8 @@
                 boss.fireCd = boss.phase === 3 ? 0.95 : (boss.phase === 2 ? 1.35 : 1.75);
                 const toP = shipGroup.position.clone().sub(boss.root.position).normalize();
                 const spreads = boss.phase === 1 ? [-0.14, 0, 0.14] : [-0.26, -0.13, 0, 0.13, 0.26];
-                spreads.forEach(function (ang) {
-                  const s = new THREE.Mesh(new THREE.SphereGeometry(0.46, 8, 6), new THREE.MeshBasicMaterial({ color: boss.coreHex }));
-                  s.position.set(boss.root.position.x, boss.root.position.y + 4.8, boss.root.position.z + 12);
-                  scene.add(s); enemyShots.push({ mesh: s, vel: toP.clone().applyAxisAngle(new THREE.Vector3(0,1,0), ang).multiplyScalar(68), dmg: 15, homing: false, life: 3.4 });
-                });
+                _wp.set(boss.root.position.x, boss.root.position.y + 4.8, boss.root.position.z + 12);
+                spreads.forEach(function (ang) { fireEnemyShot(0.46, boss.coreHex, _wp, toP.clone().applyAxisAngle(YAXIS, ang).multiplyScalar(68), 15, false, 3.4); });
               }
               boss.reinforceCd -= dt;
               if (boss.reinforceCd <= 0 && enemies.length < 3) {
@@ -2460,7 +4246,7 @@
                 boss.beamTimer -= dt;
                 if (boss.beamState === 'IDLE' && boss.beamTimer <= 0) {
                   boss.beamState = 'CHARGING'; boss.beamTimer = 1.6;
-                  showBanner('警告！主砲能量光束充能中 — 立即閃避！', 1500); radioSay('WSO', '糟了！敵艦主砲高能讀數飆升，快拉開推進往兩側閃避！', true); sfx.tone(120, 620, 1.4, 'sawtooth', 0.1);
+                  showBanner('警告！主砲能量光束充能中 — 翻滾或推進閃避！', 1500); radioSay('WSO', '糟了！敵艦主砲高能讀數飆升，快翻滾往兩側閃避！', true); sfx.tone(120, 620, 1.4, 'sawtooth', 0.1);
                 } else if (boss.beamState === 'CHARGING') {
                   boss.emitter.scale.setScalar(1 + Math.sin(now * 0.04)*0.35);
                   if (boss.beamTimer <= 0) { boss.beamState = 'FIRING'; boss.beamTimer = 1.45; boss.emitter.scale.setScalar(1); state.shake = Math.min(1, state.shake + 0.45); }
@@ -2477,41 +4263,58 @@
             boss.wps.forEach(function (w) {
               if (w.destroyed) return;
               aliveCores++;
-              const wpWorld = new THREE.Vector3(); w.mesh.getWorldPosition(wpWorld);
-              const pr = wpWorld.project(camera);
-              if (pr.z < 1) {
-                w.el.style.display = 'block';
-                w.el.style.left = ((pr.x*0.5+0.5)*window.innerWidth)+'px'; w.el.style.top = ((-pr.y*0.5+0.5)*window.innerHeight)+'px';
-                w.el.querySelector('.lock-hp-fill').style.width = Math.max(0,(w.hp/w.maxHp)*100)+'%';
-              } else { w.el.style.display = 'none'; }
+              w.mesh.getWorldPosition(_wp);
+              if (placeLock(w.el, _wp)) {
+                const hp = Math.max(0, Math.round((w.hp / w.maxHp) * 100));
+                if (w.lastHp !== hp) { w.lastHp = hp; if (!w.hpEl) w.hpEl = w.el.querySelector('.lock-hp-fill'); w.hpEl.style.width = hp + '%'; }
+              }
             });
-            bossFill.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + '%';
-            bossSub.textContent = '階段 ' + boss.phase + '/3 • 剩餘 ' + aliveCores + ' 座反應爐核心';
+            setWidth(bossFill, 'bossFill', Math.max(0, (boss.hp / boss.maxHp) * 100));
+            setText(bossSub, 'bossSub', '階段 ' + boss.phase + '/3 • 剩餘 ' + aliveCores + ' 座反應爐核心');
           }
         }
 
-        // Projectiles, Missiles, Bombs, Enemy Shots, Pickups
+        // Player Projectiles
         for (let i = playerProjs.length - 1; i >= 0; i--) {
-          const p = playerProjs[i]; p.mesh.position.x += p.vx*dt; p.mesh.position.z += p.vz*dt; p.life -= dt;
-          if (p.spin) { p.mesh.rotation.x += dt * 7; p.mesh.rotation.y += dt * 5; spawnTrailOrb(p.mesh.position, p.trailColor, 1.3); }
+          const p = playerProjs[i], pp = p.mesh.position;
+          pp.x += p.vx*dt; pp.y += p.vy*dt; pp.z += p.vz*dt; p.life -= dt;
+          if (p.spin) { p.mesh.rotation.x += dt * 7; p.mesh.rotation.y += dt * 5; spawnTrailOrb(pp, p.trailColor, 1.3); }
           let rm = p.life <= 0;
-          for (let j = enemies.length - 1; j >= 0; j--) {
-            if (p.mesh.position.distanceTo(enemies[j].mesh.position) < enemies[j].spec.r + 1.1) {
+          if (!rm && coverSlabs.length && coverBlocks(pp)) { rm = true; spawnTrailOrb(pp, 0x2ce8ff, 2.2); }
+          for (let j = enemies.length - 1; j >= 0 && !rm; j--) {
+            const en = enemies[j];
+            if (pp.distanceTo(en.mesh.position) < en.spec.r + 1.1) {
+              if (p.hitSet) { if (p.hitSet.indexOf(en) !== -1) continue; p.hitSet.push(en); }
               if (p.splash > 0) {
-                spawnExplosion(p.mesh.position, 0.85, 0xff8c2b);
+                spawnExplosion(pp, 0.85, 0xff8c2b);
                 for (let k = enemies.length - 1; k >= 0; k--) {
-                  if (enemies[k].mesh.position.distanceTo(p.mesh.position) < p.splash) {
-                    if (damageEnemy(enemies[k], p.dmg, p.crit, 1.0)) enemies.splice(k, 1);
+                  if (enemies[k].mesh.position.distanceTo(pp) < p.splash) {
+                    if (damageEnemy(enemies[k], p.dmg, p.crit, 1.0, false, p.src)) enemies.splice(k, 1);
                   }
                 }
-              } else { if (damageEnemy(enemies[j], p.dmg, p.crit, 1.0)) enemies.splice(j, 1); }
+              } else {
+                if (p.src === 'RAILGUN' && perkLv('rail_split')) {
+                  [-1, 1].forEach(function (sd) { fireBolt('SHARD', pp.x, pp.y, pp.z - 1, sd * 45, 0, -200, { dmg: WEAPONS.RAILGUN.dmg * 0.35 * perkLv('rail_split'), crit: 0.2, trail: 0x82faff, life: 0.5, src: 'RAILGUN' }); });
+                }
+                if (damageEnemy(en, p.dmg, p.crit, 1.0, false, p.src)) enemies.splice(j, 1);
+              }
               if (!p.pierce) { rm = true; break; }
             }
           }
-          if (!rm && boss && !boss.dying && p.mesh.position.distanceTo(boss.root.position) < 20) {
-            damageBoss(p.mesh.position.clone(), p.dmg, p.crit); if (!p.pierce) rm = true;
+          if (!rm) {
+            for (let h = hazards.length - 1; h >= 0; h--) {
+              const hz = hazards[h];
+              if (pp.distanceTo(hz.mesh.position) < hz.r + 0.9) {
+                hz.hp -= p.dmg;
+                if (hz.hp <= 0) { spawnExplosion(hz.mesh.position, 0.9, 0xff8c2b); state.score += 80; saveData.credits += 8; hz.pool.put(hz.mesh); hazards.splice(h, 1); }
+                if (!p.pierce) { rm = true; break; }
+              }
+            }
           }
-          if (rm) { scene.remove(p.mesh); playerProjs.splice(i, 1); }
+          if (!rm && boss && !boss.dying && pp.distanceTo(boss.root.position) < 20) {
+            damageBoss(pp.clone(), p.dmg, p.crit, p.src); if (!p.pierce) rm = true;
+          }
+          if (rm) { p.pool.put(p.mesh); playerProjs.splice(i, 1); }
         }
 
         for (let i = missiles.length - 1; i >= 0; i--) {
@@ -2524,17 +4327,18 @@
           if (tPos) ms.vel.lerp(tPos.clone().sub(ms.mesh.position).normalize().multiplyScalar(120), Math.min(1, dt*6.5));
           ms.mesh.position.addScaledVector(ms.vel, dt); ms.mesh.lookAt(ms.mesh.position.clone().add(ms.vel));
           spawnTrailOrb(ms.mesh.position, 0xff9d2e, 1.15);
-          let hit = ms.life <= 0;
+          let hit = ms.life <= 0, struck = false;
           for (let j = enemies.length - 1; j >= 0; j--) {
             if (ms.mesh.position.distanceTo(enemies[j].mesh.position) < enemies[j].spec.r + 1.6) {
               spawnExplosion(ms.mesh.position, 1.1, 0xffb03a);
-              if (damageEnemy(enemies[j], 105, 0.25, 1.2)) enemies.splice(j, 1); hit = true; break;
+              if (damageEnemy(enemies[j], 105, 0.25, 1.2)) enemies.splice(j, 1); hit = true; struck = true; break;
             }
           }
           if (!hit && boss && !boss.dying && ms.mesh.position.distanceTo(boss.root.position) < 20) {
-            spawnExplosion(ms.mesh.position, 1.2, 0xffb03a); damageBoss(ms.mesh.position.clone(), 130, 0.25); hit = true;
+            spawnExplosion(ms.mesh.position, 1.2, 0xffb03a); damageBoss(ms.mesh.position.clone(), 130, 0.25); hit = true; struck = true;
           }
-          if (hit) { scene.remove(ms.mesh); missiles.splice(i, 1); }
+          if (struck && perkLv('missile_rack') && Math.random() < 0.35 && state.missileAmmo < st.maxMissiles) state.missileAmmo++;
+          if (hit) { missilePool.put(ms.mesh); missiles.splice(i, 1); }
         }
 
         for (let i = eBombs.length - 1; i >= 0; i--) {
@@ -2543,8 +4347,9 @@
           if (b.life <= 0) {
             spawnExplosion(b.mesh.position, 2.3, 0xb678ff); spawnShockwave(b.mesh.position, 32, 0xb678ff); state.shake = Math.min(1, state.shake + 0.5);
             for (let j = enemies.length - 1; j >= 0; j--) { if (enemies[j].mesh.position.distanceTo(b.mesh.position) < 36) { if (damageEnemy(enemies[j], 210, 0.3, 1.4)) enemies.splice(j, 1); } }
+            for (let h = hazards.length - 1; h >= 0; h--) { if (hazards[h].mesh.position.distanceTo(b.mesh.position) < 36) { hazards[h].pool.put(hazards[h].mesh); hazards.splice(h, 1); } }
             if (boss && !boss.dying && boss.root.position.distanceTo(b.mesh.position) < 46) damageBoss(b.mesh.position.clone(), 280, 0.3);
-            scene.remove(b.mesh); eBombs.splice(i, 1);
+            bombPool.put(b.mesh); eBombs.splice(i, 1);
           }
         }
 
@@ -2552,8 +4357,32 @@
           const es = enemyShots[i]; es.life -= dt;
           if (es.homing && !state.gameOver) es.vel.lerp(shipGroup.position.clone().sub(es.mesh.position).normalize().multiplyScalar(48), Math.min(1, dt*2.2));
           es.mesh.position.addScaledVector(es.vel, dt);
-          if (!state.gameOver && es.mesh.position.distanceTo(shipGroup.position) < 2.6) { damagePlayer(es.dmg); scene.remove(es.mesh); enemyShots.splice(i, 1); continue; }
-          if (es.life <= 0) { scene.remove(es.mesh); enemyShots.splice(i, 1); }
+          if (coverSlabs.length && coverBlocks(es.mesh.position)) { spawnTrailOrb(es.mesh.position, 0xff6b2b, 2.0); es.pool.put(es.mesh); enemyShots.splice(i, 1); continue; }
+          if (!state.gameOver && !es.dodged && es.mesh.position.distanceTo(shipGroup.position) < 2.6) {
+            if (state.iframe > 0) {
+              // 完美閃避：翻滾無敵時間內擦過子彈
+              es.dodged = true;
+              state.ult = Math.min(100, state.ult + 6);
+              if (perkLv('roll_master')) state.shield = Math.min(state.maxShield, state.shield + 10);
+              showPop(shipGroup.position, '完美閃避！', '#d6a4ff'); sfx.tone(900, 1800, 0.12, 'sine', 0.05);
+              continue;
+            }
+            damagePlayer(es.dmg); es.pool.put(es.mesh); enemyShots.splice(i, 1); continue;
+          }
+          if (es.life <= 0) { es.pool.put(es.mesh); enemyShots.splice(i, 1); }
+        }
+
+        // 隕石流（第二星域）
+        for (let i = hazards.length - 1; i >= 0; i--) {
+          const hz = hazards[i];
+          hz.mesh.position.addScaledVector(hz.vel, dt);
+          hz.mesh.rotation.x += hz.spin.x * dt; hz.mesh.rotation.y += hz.spin.y * dt;
+          if (!state.gameOver && hz.mesh.position.distanceTo(shipGroup.position) < hz.r + 1.6) {
+            if (state.iframe > 0) { showPop(shipGroup.position, '完美閃避！', '#d6a4ff'); state.ult = Math.min(100, state.ult + 6); }
+            else { damagePlayer(16); spawnExplosion(hz.mesh.position, 1.0, 0xff8c2b); }
+            hz.pool.put(hz.mesh); hazards.splice(i, 1); continue;
+          }
+          if (hz.mesh.position.z > 22) { hz.pool.put(hz.mesh); hazards.splice(i, 1); }
         }
 
         for (let i = pickups.length - 1; i >= 0; i--) {
@@ -2561,40 +4390,39 @@
           if (pk.mesh.position.distanceTo(shipGroup.position) < 18) pk.mesh.position.lerp(shipGroup.position, dt*7.5);
           if (pk.mesh.position.distanceTo(shipGroup.position) < 3.0) {
             saveData.credits += pk.cr; checkProgression(pk.xp);
-            state.hull = Math.min(state.maxHull, state.hull + 5);
+            state.hull = Math.min(state.maxHull, state.hull + 5 * (perkLv('nano_repair') ? 2 : 1));
             if (state.missileAmmo < st.maxMissiles) state.missileAmmo++;
             showPop(shipGroup.position, '+' + pk.cr + ' 信用點', '#4effa8'); vibrate(14); sfx.tone(580, 960, 0.12, 'sine', 0.06);
-            scene.remove(pk.mesh); pickups.splice(i, 1); continue;
+            pickupPool.put(pk.mesh); pickups.splice(i, 1); continue;
           }
-          if (pk.life <= 0 || pk.mesh.position.z > 20) { scene.remove(pk.mesh); pickups.splice(i, 1); }
+          if (pk.life <= 0 || pk.mesh.position.z > 20) { pickupPool.put(pk.mesh); pickups.splice(i, 1); }
         }
 
         // Muzzle Flash, Weapon Trails, Mach Rings & Boost Vignette
-        boostVignette.style.opacity = boosting ? '1' : '0';
+        if (hudCache.vignOp !== boosting) { hudCache.vignOp = boosting; boostVignette.style.opacity = boosting ? '1' : '0'; }
         sfx.updateFlightAudio(boosting, Math.hypot(ix, iy));
         if (muzzleTimer > 0) {
           muzzleTimer -= dt;
           const frac = Math.max(0, muzzleTimer / 0.11);
-          muzzleLight.intensity *= Math.max(0, 1 - dt * 14);
           shipMuzzleLight.intensity *= Math.max(0, 1 - dt * 14);
           muzzleSprites.forEach(function (sp) { if (sp.material.opacity > 0) sp.material.opacity = frac; });
         } else {
-          muzzleLight.intensity = 0; shipMuzzleLight.intensity = 0;
+          shipMuzzleLight.intensity = 0;
           muzzleSprites.forEach(function (sp) { sp.material.opacity = 0; });
         }
         for (let i = vfxTrails.length - 1; i >= 0; i--) {
           const tr = vfxTrails[i]; tr.age += dt; const t = tr.age / tr.maxAge;
-          if (t >= 1) { scene.remove(tr.mesh); vfxTrails.splice(i, 1); continue; }
+          if (t >= 1) { tr.pool.put(tr.mesh); vfxTrails.splice(i, 1); continue; }
           tr.mesh.scale.setScalar(tr.mesh.scale.x + dt * (tr.grow || 1.4));
           tr.mesh.material.opacity = Math.max(0, (1 - t) * 0.85);
         }
         // VFX & Environment Motion
         for (let i = explosions.length - 1; i >= 0; i--) {
           const ex = explosions[i]; ex.age += dt; const t = ex.age / ex.dur;
-          if (t >= 1) { scene.remove(ex.g); explosions.splice(i, 1); continue; }
+          if (t >= 1) { releaseExplosion(ex); explosions.splice(i, 1); continue; }
           const cs = (5.2 + t * 8.5) * ex.sc;
           ex.core.scale.set(cs, cs, 1); ex.core.material.opacity = Math.max(0, 1 - t * 2.4);
-          ex.light.intensity = Math.max(0, 12 * ex.sc * (1 - t * 1.8));
+          if (ex.slot && ex.slot.owner === ex) ex.slot.light.intensity = Math.max(0, 12 * ex.sc * (1 - t * 1.8));
           ex.fireballs.forEach(function (fb) {
             fb.sp.position.x += fb.vx * dt; fb.sp.position.y += fb.vy * dt;
             const fs = fb.baseS * (1 + t * 2.15);
@@ -2607,26 +4435,26 @@
             sm.sp.scale.set(ss, ss, 1);
             sm.sp.material.opacity = Math.max(0, (1 - t) * 0.65);
           });
-          ex.ring.scale.setScalar(1 + t * 6.5); ex.ring.material.opacity = Math.max(0, 1 - t * 1.1);
-          const attr = ex.sparks.geometry.attributes.position;
-          for (let j = 0; j < attr.count; j++) attr.setXYZ(j, attr.getX(j)+ex.vArr[j*3]*dt, attr.getY(j)+ex.vArr[j*3+1]*dt, attr.getZ(j)+ex.vArr[j*3+2]*dt);
-          attr.needsUpdate = true; ex.sparks.material.opacity = Math.max(0, 1 - t);
+          ex.ring.scale.setScalar(ex.sc * (1 + t * 6.5)); ex.ring.material.opacity = Math.max(0, 1 - t * 1.1);
+          const arr = ex.sparks.geometry.attributes.position.array;
+          for (let j = 0; j < ex.cnt * 3; j++) arr[j] += ex.vArr[j] * dt;
+          ex.sparks.geometry.attributes.position.needsUpdate = true; ex.sparks.material.opacity = Math.max(0, 1 - t);
         }
         for (let i = shockwaves.length - 1; i >= 0; i--) {
           const sw = shockwaves[i]; sw.age += dt; const t = sw.age / sw.dur;
-          if (t >= 1) { scene.remove(sw.mesh); shockwaves.splice(i, 1); continue; }
+          if (t >= 1) { shockPool.put(sw.mesh); shockwaves.splice(i, 1); continue; }
           sw.mesh.scale.setScalar(1 + t*sw.maxScale); sw.mesh.material.opacity = (1 - t)*0.7;
         }
         for (let i = critPops.length - 1; i >= 0; i--) {
-          const cp = critPops[i]; cp.age += dt;
+          const cp = critPops[i]; cp.age += realDt;
           cp.el.style.opacity = String(Math.max(0, 1 - cp.age/0.75));
           cp.el.style.transform = 'translate(-50%, calc(-50% - ' + (cp.age*38).toFixed(0) + 'px))';
           if (cp.age >= 0.75) { cp.el.remove(); critPops.splice(i, 1); }
         }
 
         const speedMult = boosting ? 2.4 : 1.0;
-        nebulaUniforms.forEach(function (u) { u.uTime.value += dt; });
         portalUniforms.forEach(function (u) { u.uTime.value += dt; });
+        for (let i = 0; i < nebulaPlanes.length; i++) nebulaPlanes[i].rotation.z += dt * 0.0025 * (i % 2 ? -1 : 1);
         if (landmarkGroup) {
           if (SECTORS[currentSectorIdx].landmark === 'TITANGATE') landmarkGroup.rotation.z += dt * 0.08;
           else landmarkGroup.rotation.y += dt * 0.012;
@@ -2642,9 +4470,9 @@
           asteroidMesh.instanceMatrix.needsUpdate = true;
         }
         if (dustPoints) {
-          const attr = dustPoints.geometry.attributes.position;
-          for (let i = 0; i < attr.count; i++) { let z = attr.getZ(i) + fwd*2.4; if (z > 24) z = -160; attr.setZ(i, z); }
-          attr.needsUpdate = true;
+          const darr = dustPoints.geometry.attributes.position.array;
+          for (let i = 2; i < darr.length; i += 3) { let z = darr[i] + fwd*2.4; if (z > 24) z = -160; darr[i] = z; }
+          dustPoints.geometry.attributes.position.needsUpdate = true;
         }
 
         // Update Multi-Depth Capital Carriers & Near-Field Obstacle Collision Avoidance
@@ -2659,8 +4487,7 @@
               c.group.position.y = (Math.random() - 0.5) * 11;
             }
             c.warnCd = Math.max(0, c.warnCd - dt);
-            // Check player proximity / collision with massive carrier hull
-            if (!state.gameOver && !state.victory &&
+            if (!state.gameOver && !state.victory && state.iframe <= 0 &&
                 Math.abs(shipGroup.position.x - c.group.position.x) < c.hitX &&
                 Math.abs(shipGroup.position.y - c.group.position.y) < c.hitY &&
                 Math.abs(shipGroup.position.z - c.group.position.z) < c.hitZ) {
@@ -2668,7 +4495,6 @@
                 c.warnCd = 0.65;
                 damagePlayer(18);
                 showBanner('近距碰撞警告！請閃避大型母艦艦體！', 1400); radioSay('WSO', '喂喂！差點擦到友軍母艦甲板了，拉高機頭繞過指揮塔！', false);
-                // Gentle push-out deflection so player never gets trapped inside hull
                 shipGroup.position.x += (shipGroup.position.x >= c.group.position.x ? 3.5 : -3.5);
               }
             }
@@ -2680,44 +4506,67 @@
         // Camera
         const mode = camModes[camIdx], bossActive = !!(boss && !boss.dying);
         const desiredFov = boosting ? 70 : (bossActive ? 63 : (mode === 'WIDE' ? 66 : 58));
-        camera.fov += (desiredFov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix();
+        if (Math.abs(desiredFov - camera.fov) > 0.01) { camera.fov += (desiredFov - camera.fov) * Math.min(1, realDt * 5); camera.updateProjectionMatrix(); }
         if (mode === 'ORBIT') {
           orbitAngle += dt * 0.42;
           targetCamPos.set(shipGroup.position.x + Math.sin(orbitAngle)*14, shipGroup.position.y + 4.2, shipGroup.position.z + Math.cos(orbitAngle)*14);
-          camera.position.lerp(targetCamPos, Math.min(1, dt * 5)); camera.lookAt(shipGroup.position);
+          camera.position.lerp(targetCamPos, Math.min(1, realDt * 5)); camera.lookAt(shipGroup.position);
         } else {
           const zOff = bossActive ? 15.5 : (mode === 'WIDE' ? 17.5 : 13.0), yOff = bossActive ? 4.8 : (mode === 'WIDE' ? 5.6 : 4.1);
           targetCamPos.set(shipGroup.position.x * 0.72, shipGroup.position.y * 0.72 + yOff, shipGroup.position.z + zOff);
-          camera.position.lerp(targetCamPos, Math.min(1, dt * 6));
+          camera.position.lerp(targetCamPos, Math.min(1, realDt * 6));
           const sh = state.shake + (boosting ? 0.1 : 0);
           if (sh > 0.01) { camera.position.x += (Math.random()-0.5)*sh*0.65; camera.position.y += (Math.random()-0.5)*sh*0.65; }
-          state.shake = Math.max(0, state.shake - dt * 2.4);
+          state.shake = Math.max(0, state.shake - realDt * 2.4);
           lookTarget.set(shipGroup.position.x * 0.45, shipGroup.position.y * 0.45 + 0.6, shipGroup.position.z - 36);
           camera.lookAt(lookTarget);
-          camera.rotation.z += (-ix * 0.08 - camera.rotation.z) * Math.min(1, dt * 5);
+          camera.rotation.z += (-ix * 0.08 - camera.rotation.z) * Math.min(1, realDt * 5);
         }
         reticleEl.style.transform = 'translate(calc(-50% + ' + (ix*18).toFixed(1) + 'px), calc(-50% + ' + (-iy*12).toFixed(1) + 'px))';
 
-        // HUD Sync
-        pilotLvPill.textContent = 'LV ' + saveData.level;
-        hullFill.style.width = Math.max(0, (state.hull/state.maxHull)*100).toFixed(0)+'%'; hullVal.textContent = Math.round(state.hull);
-        shieldFill.style.width = Math.max(0, (state.shield/state.maxShield)*100).toFixed(0)+'%'; shieldVal.textContent = Math.round(state.shield);
-        heatFill.style.width = state.heat.toFixed(0)+'%'; heatVal.textContent = Math.round(state.heat)+'%';
-        boostFill.style.width = state.boost.toFixed(0)+'%'; boostVal.textContent = Math.round(state.boost)+'%';
-        scoreVal.textContent = String(state.score).padStart(6, '0');
-        rewardRow.textContent = '信用點 ' + saveData.credits.toLocaleString() + ' • 連擊 x' + state.combo.toFixed(1);
-        missileCnt.textContent = String(state.missileAmmo);
-        btnEmp.disabled = state.empCd > 0; btnEmp.textContent = state.empCd > 0 ? '電磁 ' + Math.ceil(state.empCd) + 's' : '電磁';
-        btnBomb.disabled = state.bombCd > 0; btnBomb.textContent = state.bombCd > 0 ? '重力 ' + Math.ceil(state.bombCd) + 's' : '重力';
-        ultPct.textContent = Math.floor(state.ult) + '%';
-        btnUlt.classList.toggle('ready', state.ult >= 100); btnUlt.disabled = state.ult < 100;
+        // 主動散熱 UI（每幀，需要即時指針）
+        if (state.overheated && !state.gameOver) {
+          setFlag(ventUI, 'ventShow', 'show', true);
+          setFlag(ventUI, 'ventMiss', 'missed', state.ventResult === 'miss');
+          const z = ventZone();
+          setText(ventLabel, 'ventLabel', state.ventResult === 'miss' ? '散熱失誤 — 等待自然冷卻' : (IS_TOUCH ? '過熱！指針進綠區時按「射擊」' : '過熱！指針進綠區時按空白鍵'));
+          if (hudCache.ventZoneL !== z.a) { hudCache.ventZoneL = z.a; ventZoneEl.style.left = (z.a * 100) + '%'; ventZoneEl.style.width = ((z.b - z.a) * 100) + '%'; }
+          ventNeedleEl.style.left = (state.ventResult === 'miss' ? 0 : ventNeedle() * 100).toFixed(1) + '%';
+        } else setFlag(ventUI, 'ventShow', 'show', false);
 
-        renderer.render(scene, camera);
+        // HUD Sync（10Hz 節流）
+        hudTimer -= realDt;
+        if (hudTimer <= 0) {
+          hudTimer = 0.1;
+          setText(pilotLvPill, 'lv', 'LV ' + saveData.level);
+          setWidth(hullFill, 'hullW', Math.max(0, (state.hull/state.maxHull)*100)); setText(hullVal, 'hullV', String(Math.round(state.hull)));
+          setWidth(shieldFill, 'shW', Math.max(0, (state.shield/state.maxShield)*100)); setText(shieldVal, 'shV', String(Math.round(state.shield)));
+          setWidth(heatFill, 'heatW', state.heat); setText(heatVal, 'heatV', state.overclock > 0 ? '超頻' : Math.round(state.heat) + '%');
+          setWidth(boostFill, 'boostW', state.boost); setText(boostVal, 'boostV', Math.round(state.boost) + '%');
+          setText(scoreVal, 'score', String(state.score).padStart(6, '0'));
+          setText(rewardRow, 'reward', '信用點 ' + saveData.credits.toLocaleString() + ' • 連擊 x' + state.combo.toFixed(1));
+          setText(missileCnt, 'mis', String(state.missileAmmo));
+          const empOn = state.empCd > 0, bombOn = state.bombCd > 0;
+          if (hudCache.empDis !== empOn) { hudCache.empDis = empOn; btnEmp.disabled = empOn; }
+          setText(btnEmp, 'emp', empOn ? '電磁 ' + Math.ceil(state.empCd) + 's' : '電磁');
+          if (hudCache.bombDis !== bombOn) { hudCache.bombDis = bombOn; btnBomb.disabled = bombOn; }
+          setText(btnBomb, 'bomb', bombOn ? '重力 ' + Math.ceil(state.bombCd) + 's' : '重力');
+          setText(ultPct, 'ult', Math.floor(state.ult) + '%');
+          const ultReady = state.ult >= 100;
+          setFlag(btnUlt, 'ultR', 'ready', ultReady);
+          if (hudCache.ultDis !== !ultReady) { hudCache.ultDis = !ultReady; btnUlt.disabled = !ultReady; }
+          setFlag(rollBtn, 'rollC', 'cooling', state.rollCd > 0 || state.boost < 18);
+        }
+
+        renderFrame();
       }
 
+      if (DEBUG_MODE) window.__sf = { get state() { return state; }, offerPerks: offerPerks, choosePerk: choosePerk, deploySector: deploySector, startWave: startWave, tryRoll: tryRoll, tryVent: tryVent, triggerOverheat: triggerOverheat, damagePlayer: damagePlayer, enemies: enemies, perf: perf, get bloomActive() { return bloomActive; }, sfx: sfx, radioVoice: radioVoice, renderer: renderer, pools: { proj: projPools, shots: shotPools, explosionPool: explosionPool } };
+
       window.onload = function () {
-        applyTier(currentTier);
+        applyTier(currentTier, true);
         deploySector(0);
+        syncAudioBtn();
         lastTime = performance.now();
         requestAnimationFrame(animate);
       };
